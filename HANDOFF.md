@@ -1,6 +1,6 @@
 # 인수인계: 녹조 예측 + RAG 챗봇 웹 서비스 (KCI)
 
-> 작성: 2026-10-12 · 이전 대화의 흐름과 결정 사항을 다음 작업자(AI)가 이어받기 위한 문서.
+> 작성: 2026-10-12 (같은 날 밤 진행 상황 갱신) · 이전 대화의 흐름과 결정 사항을 다음 작업자(AI)가 이어받기 위한 문서.
 > 상세 설계는 같은 폴더의 `DEV_PLAN.md`를 함께 읽을 것. 이 문서는 그 이후 바뀐 점과 현재 진행 상황을 담는다.
 
 ## 0. 사용자와 일하는 방식
@@ -59,7 +59,7 @@
 | scikit-learn | 1.7.2 | |
 | pykalman | 미확인 (최신 0.11.2를 임시로 기재) | 서버 np2에서 `pip show pykalman` 확인 필요 |
 | CUDA | 12.1 빌드 | 서버 드라이버 535 / CUDA 12.2 |
-| Node.js | 22 LTS | |
+| Node.js | 24 LTS | 맥에 설치된 v24.13.0 사용. nvm은 설치하지 않음 |
 | PostgreSQL | `pgvector/pgvector:pg16` | |
 
 ### backend/requirements.txt (확정안, 2026-10-12)
@@ -105,30 +105,50 @@ httpx==0.28.1
 
 - 사용자가 예전 NowGo_Busan의 requirements.txt를 재사용하려 했으나 **numpy 2.4.6 / pandas 3.0.3이 모델 환경과 충돌**하고, 지도·좌표·로그인 관련 불필요 패키지가 많아서 새로 만들기로 함. 주석으로 용도별 묶는 형식만 차용.
 
-## 5. 현재 진행 상황 (2026-10-12 00시 기준)
+## 5. 현재 진행 상황 (2026-10-12 밤 기준)
+
+첫 목표였던 **"프론트에서 `/api/health` 호출 성공"까지 완료**하고 첫 커밋을 GitHub에 올렸다.
 
 - [x] 서버 환경 확인 (아래 6장)
 - [x] 예측모델 코드 분석 (`DEV_PLAN.md` 5장)
 - [x] 버전 확정, requirements 확정
 - [ ] **관리자에게 Docker 권한 요청** (메시지 초안은 `DEV_PLAN.md` 7장)
-- [~] GitHub 저장소 생성 중: 계정 `Dovcl`, **Private**, README / .gitignore / license 없이 빈 저장소로 생성 권장함
-- [~] 로컬 프로젝트 폴더: 처음 `~/Projects/RAG_LLM`으로 만들었고, **GitHub 저장소 이름에 맞춰 폴더명을 바꾸기로 함** (최종 이름은 사용자 확인 필요). 이름을 바꾸면 venv는 다시 만들어야 함
-- [ ] 백엔드 venv 생성 → requirements 설치 → `app/main.py`에 `/api/health`
-- [ ] 프론트 `npm create vite@latest frontend -- --template react-ts` → proxy 설정
-- [ ] 프론트에서 `/api/health` 호출 성공 확인
-- [ ] `.gitignore`, `README.md`, `.editorconfig`, `.env.example`, `docs/DEV_PLAN.md` 정리 → 첫 커밋 → push
+- [x] GitHub 저장소: `Dovcl/Algae_RAG_Platform` (Private), SSH로 연결, `main`에 첫 커밋 push
+- [x] 로컬 프로젝트 폴더: `~/Projects/Algae_RAG_Platform` 으로 확정
+- [x] 백엔드: `backend/.venv` (Python 3.11.4), requirements 설치, `/api/health`
+- [x] 프론트: Vite react-ts (React 19, Vite 8, TypeScript 6, ESLint), proxy 설정
+- [x] 프론트에서 `/api/health` 호출 성공 (화면에 "백엔드 상태: ok")
+- [x] 루트 `.gitignore`
+- [ ] `README.md`, `.editorconfig`, `.env.example`, `docs/` 정리
 
-### 다음에 안내할 순서 (사용자에게 이미 전달한 계획)
+### 이번에 정한 것
 
-1. 맥 도구: Docker Desktop(메모리 상한 설정), Node 22(nvm), Python 3.11, GitHub SSH 키, VS Code 확장
-2. 저장소 생성·연결 (`git remote add origin git@github.com:Dovcl/<저장소>.git`)
-3. 기본 파일: README, .gitignore(`.venv/`, `node_modules/`, `.env`, `__pycache__/`, `dist/`, `.DS_Store`, 모델·데이터), .editorconfig, .env.example, docs/
-4. AI 지침서: 본문은 `AGENTS.md`, `CLAUDE.md`는 `@AGENTS.md`로 불러오고 Claude 전용만 추가. 짧게 시작해 실수할 때마다 한 줄씩 추가. 넣을 것: 프로젝트 요약, 확정 버전(임의 업그레이드 금지), 실행·테스트 명령, 코드 규칙, 금지사항(.env 커밋·모델 파일 수정·서버 GPU 1 사용·무단 패키지 추가), 완료 기준
-5. 백엔드 초기화 (venv, FastAPI, Ruff)
-6. 프론트 초기화 (Vite react-ts, ESLint, Prettier, proxy)
-7. pre-commit, pytest / Vitest 최소 테스트
-8. Docker Compose 뼈대 (backend + db 먼저)
-9. 커밋 규칙: Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`)
+| 항목 | 결정 | 이유 |
+|---|---|---|
+| 백엔드 구조 | `backend/app/` 패키지, 실행은 `uvicorn app.main:app --reload --port 8000` | import가 실행 위치에 덜 의존, Dockerfile에서 `COPY app/`만 하면 됨 |
+| 라우터 폴더 이름 | `app/routers/` (`api/` 아님) | FastAPI 공식 문서 명칭, URL의 `/api`와 혼동 방지 |
+| `/api` 접두사 | `app/routers/__init__.py`의 `api_router = APIRouter(prefix="/api")`에서 한 번만 붙임 | 각 라우터 파일은 `/health`처럼 짧게 작성 |
+| requirements 분리 | `requirements.txt`(실행용) + `requirements-dev.txt`(개발용) | 운영 Docker 이미지에 개발 도구를 넣지 않기 위해 |
+| Node 버전 | 24 LTS | 맥에 이미 설치돼 있고, Node는 모델 환경과 맞출 제약이 없음 |
+| 린터 | ESLint (Oxlint 아님) | 현업 표준, 계획한 도구 구성 |
+| 연구실 코드 | `TFT_*.py`, `관련파일/`, `*.docx`, `*.pptx`는 **git에 올리지 않음** (`.gitignore`) | 연구실 자산 |
+| 커밋 | 사용자가 직접 입력. `Co-Authored-By` 줄 없이 | 사용자 요청 |
+
+### 알아 둘 것
+
+- 맥의 `python3`는 anaconda 3.12.7이다. venv는 반드시 `python3.11`로 만든다.
+- pytest로 FastAPI `TestClient`를 쓰면 "`httpx` 대신 `httpx2`를 설치하라"는 Starlette deprecated 경고가 뜬다. 동작은 정상. 첫 테스트를 쓸 때 `requirements-dev.txt`를 정리한다.
+- 모델 변환 스크립트(`scripts/export_models.py`)와 `app/ml/`의 TFT 클래스는 학습 코드의 모델 정의를 옮겨 와야 한다. **그 단계 전에 모델 구조 코드를 Private 저장소에 올려도 되는지 연구실에 확인**할 것. 안 되면 서버에만 두고 volume으로 연결한다.
+- `src/App.css`는 템플릿에 딸려 온 파일로 현재 쓰지 않는다.
+
+### 다음 순서
+
+1. AI 지침서: 본문은 `AGENTS.md`, `CLAUDE.md`는 `@AGENTS.md`로 불러오고 Claude 전용만 추가. 짧게 시작해 실수할 때마다 한 줄씩 추가. 넣을 것: 프로젝트 요약, 확정 버전(임의 업그레이드 금지), 실행·테스트 명령, 코드 규칙, 금지사항(.env 커밋·연구실 코드 커밋·모델 파일 수정·서버 GPU 1 사용·무단 패키지 추가), 완료 기준
+2. Docker Compose 뼈대 (backend + db 먼저). Docker Desktop 메모리 상한 설정
+3. 첫 테스트 (`backend/tests/test_health.py`) — 예측 API mock을 만들 때 함께 해도 됨
+4. 기본 파일: README, .editorconfig, .env.example, docs/
+5. Prettier, pre-commit, Vitest
+6. 커밋 규칙: Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`)
 
 ## 6. 연구실 서버 정보 (2026-10-08 확인)
 
@@ -170,6 +190,6 @@ httpx==0.28.1
 |---|---|
 | `DEV_PLAN.md` | 전체 개발 계획 (아키텍처, 결정 이유, 모델 분석, 서버 환경, 폴더 구조, 진행 단계) |
 | `HANDOFF.md` | 이 문서 |
-| `TFT_TL_PLOT.py`, `TFT_train_each_location.py` | 예측모델 코드 사본 |
+| `TFT_TL_PLOT.py`, `TFT_train_each_location.py` | 예측모델 코드 사본 (git 제외) |
 | `#. RAG-녹조예측/` | 참고 논문, 미팅 자료(KCI 논문화 설계 보고서 등) |
 | `RQ 취합 및 실험 설계안_26-09-04_TS (1).docx` | 연구 질문·실험 설계 |

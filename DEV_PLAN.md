@@ -1,6 +1,6 @@
 # KCI RAG 챗봇 웹 서비스 개발 계획
 
-> 최종 수정: 2026-10-08 · 지금까지 논의한 내용 정리. 폴더와 파일은 명령어를 직접 입력하면서 단계별로 같이 만든다.
+> 최종 수정: 2026-10-12 · 지금까지 논의한 내용 정리. 폴더와 파일은 명령어를 직접 입력하면서 단계별로 같이 만든다.
 
 ## 1. 개요
 
@@ -61,7 +61,7 @@ Cloudflare (HTTPS 처리)
 | scikit-learn | 1.7.2 | |
 | pykalman | 확인 필요 | yml에 없음 |
 | CUDA | 12.1 빌드 | 서버 드라이버 535 (CUDA 12.2 지원)와 호환 |
-| Node.js | 22 LTS | |
+| Node.js | 24 LTS | 맥에 설치된 v24.13.0 기준. 프론트 Dockerfile도 `node:24` 사용 |
 | PostgreSQL + pgvector | `pgvector/pgvector:pg16` | |
 | Nginx | 버전 명시 (예: `nginx:1.27-alpine`) | `latest` 사용 안 함 |
 | Python 패키지 | `requirements.txt`에 `==`로 고정 | |
@@ -257,10 +257,10 @@ services:
 
 처음에 한 번만 설정하면 이후에는 "수정 → push → 반영" 흐름이 된다.
 
-## 10. 예정 폴더 구조 (아직 만들지 않음)
+## 10. 폴더 구조 (backend/app, frontend까지 생성됨)
 
 ```
-kci-rag/
+Algae_RAG_Platform/
 ├─ frontend/              # React + Vite + TypeScript
 │  ├─ src/
 │  ├─ vite.config.ts
@@ -269,13 +269,14 @@ kci-rag/
 ├─ backend/               # FastAPI
 │  ├─ app/
 │  │  ├─ main.py
-│  │  ├─ api/             # 라우터 (/api/chat, /api/predict ...)
+│  │  ├─ routers/         # 라우터 (/api/health, /api/chat, /api/predict ...)
 │  │  ├─ core/            # 설정(.env 로딩)
 │  │  ├─ db/              # SQLAlchemy 모델, 세션
 │  │  ├─ rag/             # 임베딩, 검색, LLM 호출
 │  │  └─ ml/              # TFT 클래스, 전처리, 예측 (mock ↔ 실제 교체)
 │  ├─ alembic/
-│  ├─ requirements.txt
+│  ├─ requirements.txt      # 실행용 (Docker 이미지에 설치)
+│  ├─ requirements-dev.txt  # 개발용 (ruff, pytest, httpx)
 │  └─ Dockerfile
 ├─ scripts/
 │  └─ export_models.py    # .pt → weights + config + scaler 변환 (서버에서 1회)
@@ -292,11 +293,11 @@ kci-rag/
 
 - [x] **0. 서버 환경 확인** (7장) — Docker 권한 없음, GPU 확인 완료
 - [ ] 0-1. 관리자에게 Docker 권한 요청
-- [ ] 0-2. 맥 환경 확인: `docker --version`, `docker compose version`, `node -v`, `python3 --version`, `uname -m`
-- [ ] 1. GitHub 저장소 생성, 기본 폴더와 `.gitignore`
-- [ ] 2. Frontend: Vite로 React + TypeScript 프로젝트 생성, proxy 설정
-- [ ] 3. Backend: FastAPI 기본 앱, `/api/health` 엔드포인트, venv
-- [ ] 4. 프론트에서 `/api/health` 호출해 연결 확인
+- [x] 0-2. 맥 환경 확인 — Docker 29.1.3, Node v24.13.0, Python 3.11.4(`python3.11`), arm64. `python3`는 anaconda 3.12라 venv는 `python3.11`로 생성
+- [x] 1. GitHub 저장소 생성, 기본 폴더와 `.gitignore` — `Dovcl/Algae_RAG_Platform` (Private)
+- [x] 2. Frontend: Vite로 React + TypeScript 프로젝트 생성, proxy 설정
+- [x] 3. Backend: FastAPI 기본 앱, `/api/health` 엔드포인트, venv
+- [x] 4. 프론트에서 `/api/health` 호출해 연결 확인
 - [ ] 5. Docker Compose에 db(PostgreSQL + pgvector) 추가, SQLAlchemy + Alembic 연결
 - [ ] 6. 예측 API를 mock으로 연결 (`/api/predict`, 22개 지점 목록, 분위수·단계 응답 형태)
 - [ ] 6-1. (서버) 모델 변환 스크립트 실행 → weights / config / scaler
