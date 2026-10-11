@@ -1,0 +1,28 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# 환경변수 (API 키 등)
+.env
+.env.*
+!.env.example
+
+# 모델·데이터 (git에 올리지 않음)
+models/
+data/
+*.pt
+*.joblib
+
+# OS / 에디터
+.DS_Store
+
+# 연구 자료 (저장소 밖에서 관리)
+관련파일/
+*.docx
+*.pptx
+~$*
+TFT_TL_PLOT.py
+TFT_train_each_location.py

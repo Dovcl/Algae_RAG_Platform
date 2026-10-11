@@ -1,0 +1,21 @@
+# --- 웹 서버 ---
+fastapi==0.143.0
+uvicorn[standard]==0.54.0
+
+# --- 설정 (.env 로딩) ---
+pydantic-settings==2.15.0
+python-dotenv==1.2.4
+
+# --- DB (5단계에서 주석 해제) ---
+# sqlalchemy
+# alembic
+# psycopg2-binary
+# pgvector
+
+# --- 예측모델 TFT (6단계에서 주석 해제) ---
+# 학습 환경(np2-environment.yml)과 버전을 반드시 맞출 것. 임의로 올리지 말 것.
+# torch==2.5.1                  # 서버(GPU)는 --extra-index-url https://download.pytorch.org/whl/cu121
+# numpy==1.26.4
+# pandas==2.1.4
+# scikit-learn==1.7.2
+# pykalman==0.11.2              # 서버 np2 환경 버전 확인 후 맞추기
