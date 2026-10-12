@@ -37,7 +37,7 @@
 | 개발 도구 | Ruff(린트+포맷), pytest, ESLint, Prettier, pre-commit |
 | 나중에 | GitHub Actions self-hosted runner (자동 배포) |
 
-미정: 임베딩 모델(`bge-m3` / `multilingual-e5` 후보), LLM(외부 API vs 서버 GPU 직접 실행 — GPU를 다른 연구원과 공유하므로 외부 API가 현실적이라는 의견까지 나눔).
+미정: 임베딩 모델(`bge-m3` / `multilingual-e5` 후보), Ollama에서 쓸 모델. LLM은 당분간 Ollama로 정함(5장). GPU를 다른 연구원과 공유하므로 서버에서 불안정하면 외부 API provider를 추가한다.
 
 ## 4. 확정 버전
 
@@ -141,6 +141,8 @@ httpx==0.28.1
 | 이미지 라벨 | Dockerfile에 `LABEL project=algae-rag` | 서버에서 이 프로젝트 이미지만 정리 (`DEV_PLAN.md` 8장) |
 | 학습 기록 | `STUDY_LOG.md` (git 제외, AI가 직접 써도 됨) | 파일별 용도와 이유를 남기기 위해 |
 | RAG 개발 장소 | 맥에서 chunking·적재·검색까지 만들고, 서버에서는 적재 스크립트를 다시 실행 | 서버로 넘어가는 것은 코드와 원본 문서. 벡터는 같은 임베딩 모델이면 재현됨 |
+| LLM·예측모델 전환 | `.env`의 `LLM_PROVIDER`(`mock`/`ollama`) + `LLM_MODEL`, `PREDICT_BACKEND`(`mock`/`tft`)로 구현을 고른다. true/false 스위치는 쓰지 않음 | 값 하나만 보면 무엇이 도는지 알 수 있고, 분기가 한 곳에만 생김. `mock`일 때는 torch 없이 실행됨 (아래 "LLM·예측모델 전환 구조") |
+| LLM (당분간) | Ollama (무료, 로컬 실행) | 비용 없이 시작. provider 구조라 나중에 외부 API를 값 하나로 추가 가능 |
 
 ### 팀 과업과의 대응
 
@@ -151,6 +153,48 @@ httpx==0.28.1
 | 3. DB·예측모델 연결 | API 형태, mock 예측, 샘플 데이터, LLM 컨텍스트 구획 | 모델 변환, mock → 실제 예측, 실제 데이터 |
 
 과업 3의 "현재값 / 미래 예측값 / 관리문서 정보를 LLM이 구분해서 사용"은 프롬프트에 구획을 나눠 넣는 일이라 mock 값으로 맥에서 완성할 수 있다. 서버에서는 값의 출처만 바뀐다.
+
+### LLM·예측모델 전환 구조 (2026-10-13 결정, 아직 구현 전)
+
+| 설정 | 값 | 맥 | 서버 |
+|---|---|---|---|
+| `LLM_PROVIDER` | `mock` / `ollama` | 둘 다 가능 | `ollama` |
+| `LLM_MODEL` | 예: `llama3.2:3b` | | |
+| `OLLAMA_BASE_URL` | 맥: `http://host.docker.internal:11434` | | 서버: Ollama 컨테이너 주소 |
+| `PREDICT_BACKEND` | `mock` / `tft` | `mock`만 | `tft` |
+
+- 값은 `app/core/config.py`의 `Settings`에 넣는다. 파일마다 `os.getenv`를 쓰지 않는다.
+- 분기는 한 곳에서만 한다. 시작할 때 설정값으로 구현을 하나 골라 끼우고, 함수마다 `if mock:`을 넣지 않는다. `mock`도 구현 중 하나로 취급한다.
+- `torch`는 `tft` 구현 안에서만 import한다. `PREDICT_BACKEND=mock`이면 torch가 설치돼 있지 않아도 실행돼야 한다.
+- `mock`과 실제 구현은 같은 입력·출력 형태를 지킨다. 테스트는 `mock`으로 돌린다.
+- `chat_logs`에 provider와 모델 이름 열을 추가한다. mock 답변이 논문 실험 데이터에 섞이면 나중에 가려낼 수 없다.
+- 맥에서는 Ollama를 맥에 직접 설치해 돌린다. 컨테이너 안에서 `localhost:11434`는 통하지 않으므로 `host.docker.internal`을 쓴다.
+- 서버에서는 Ollama도 컨테이너로 올려 GPU 0에 묶는다. Docker 권한과 NVIDIA Container Toolkit이 필요하다.
+- Ollama 호출에 HTTP 클라이언트가 필요하다. `httpx`가 지금은 `requirements-dev.txt`에만 있으므로 실행용으로 옮길지 사용자에게 먼저 묻는다.
+
+### 참고 프로젝트: `~/Documents/GitHub/careerfit_ai_new` (사용자의 이전 RAG 프로젝트)
+
+**가져올 것**
+
+| 무엇 | 그쪽 위치 | 우리 쪽 쓰임 |
+|---|---|---|
+| SSE 이벤트 순서: `sources` → `token` 반복 → `done`, 실패 시 `error` | `backend/routers/analyze.py`의 `analyze_career_stream`, `_sse_event` | `/api/chat` 스트리밍. 출처를 먼저 보내 답변이 흐르는 동안 근거가 화면에 먼저 뜸 |
+| `X-Accel-Buffering: no` 응답 헤더 (`Cache-Control: no-cache`와 함께) | 같은 함수의 `StreamingResponse` | Nginx가 스트리밍을 모았다가 한꺼번에 보내는 것을 막음. 빠뜨리면 스트리밍이 안 되는 것처럼 보임 |
+| 프롬프트와 출처 목록을 따로 만드는 구조 | `backend/services/llm_service.py`의 `build_rag_prompt`, `build_sources` | 출처(문서명, 페이지, section, chunk ID) 응답. "현재값 / 예측값 / 관리문서" 구획도 프롬프트 쪽에 같은 방식으로 |
+| "자료에 없으면 지어내지 말라" 규칙, 검색 결과가 없을 때의 분기 | `build_rag_prompt` | 관리문서 기반 답변의 환각 방지 |
+| 사용자용 오류 문구 변환 (Ollama 꺼짐, 시간 초과) | `get_user_facing_error`, `call_ollama`의 예외 처리 | 챗봇 화면의 오류 안내 |
+| Ollama 호출 방식 (`/api/generate`, `stream=True`, timeout 120초) | `stream_ollama`, `call_ollama` | `ollama` provider 구현 |
+| 모델 벤치마크: 같은 질문 세트로 모델별 응답 시간·품질 기록 | `backend/data/benchmark_models.py`, `docs/MODEL_BENCHMARK.md` | KCI 논문 실험. 질문 세트와 평가 기준표 형식 참고 |
+| `.env.example`에 선택 가능한 모델 값을 주석으로 나열 | `.env.example` | `LLM_PROVIDER`, `LLM_MODEL` 예시 |
+
+**가져오지 않을 것**
+
+- `MOCK_MODE=true/false`를 함수마다 확인하는 방식 → 위 "전환 구조"로 대체
+- CORS 설정, `FRONTEND_ORIGINS`, `VITE_API_BASE_URL` → 우리는 같은 주소 구조라 불필요
+- ChromaDB → pgvector로 결정함
+- 버전 없는 requirements, `*.backup.py` 파일
+- provider 4종(Gemini, Mistral, HuggingFace, Ollama) → 지금은 `mock`과 `ollama`만
+- 모듈 최상단의 `os.getenv` → `Settings` 사용
 
 ### 알아 둘 것
 
@@ -167,10 +211,10 @@ httpx==0.28.1
 ### 다음 순서
 
 1. 서버 쪽 대기 항목 보내기: Docker 권한 요청, `pip show pykalman`, 데이터 시점 간격(일/주), 모델 코드 저장소 반입 가능 여부
-2. 예측 API mock + 첫 테스트 (`backend/tests/`). 만들면 `AGENTS.md` 백엔드 검사 명령의 "`pytest`는 생략" 문구 삭제
-3. RAG 결정: 사용할 공식 문서, 임베딩 모델, LLM(외부 API)
+2. 예측 API mock + 첫 테스트 (`backend/tests/`). `PREDICT_BACKEND` 설정을 이때 넣는다. 만들면 `AGENTS.md` 백엔드 검사 명령의 "`pytest`는 생략" 문구 삭제
+3. RAG 결정: 사용할 공식 문서, 임베딩 모델, Ollama 모델
 4. RAG 적재: `documents`/`chunks` 테이블(출처 정보 + 벡터), chunking·적재 스크립트
-5. RAG 검색 + `/api/chat` (스트리밍), `chat_logs`에 검색 문서·응답 시간 열 추가
+5. RAG 검색 + `/api/chat` (스트리밍). `LLM_PROVIDER` 설정을 이때 넣는다. `chat_logs`에 검색 문서·응답 시간·provider·모델 열 추가
 6. 프론트 화면: 지점 선택·예측 결과, 챗봇
 7. Nginx + 프론트 Dockerfile로 맥에서 전체 구조 실행
 8. 기본 파일(README, .editorconfig), Prettier, pre-commit, Vitest
@@ -206,7 +250,7 @@ httpx==0.28.1
 - pykalman 버전
 - 데이터 시점 간격(일/주) — `~/LLM_RAG/DATA/{강}/` CSV로 확인
 - `Forecast` 변수 의미, 웹에서 최신 입력 데이터를 어디서 받을지 → "오늘 기준 예측" vs "과거 기간 결과 조회" 화면 결정
-- LLM, 임베딩 모델
+- 임베딩 모델, Ollama에서 쓸 모델 (LLM은 당분간 Ollama로 결정)
 - API 약속(엔드포인트·요청·응답 형태) — 예: `GET /api/locations`, `POST /api/predict`. FastAPI OpenAPI + openapi-typescript로 타입 공유 제안함
 - 도메인, 외부 공개 범위와 연구실 승인
 
