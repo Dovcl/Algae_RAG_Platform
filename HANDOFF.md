@@ -3,13 +3,6 @@
 > 작성: 2026-10-12 (같은 날 밤 진행 상황 갱신) · 이전 대화의 흐름과 결정 사항을 다음 작업자(AI)가 이어받기 위한 문서.
 > 상세 설계는 같은 폴더의 `DEV_PLAN.md`를 함께 읽을 것. 이 문서는 그 이후 바뀐 점과 현재 진행 상황을 담는다.
 
-## 0. 사용자와 일하는 방식
-
-- 사용자: 도현 (서울시립대 연구실, KCI 논문 준비 중). 한국어로 대화.
-- **명령어를 직접 입력하며 배우고 싶어 함.** 폴더나 파일을 AI가 대신 만들지 말고, 순서와 명령어를 알려주면 사용자가 실행한다. 사용자가 명시적으로 부탁할 때만 직접 만든다.
-- 개념 설명을 좋아함. 왜 그렇게 하는지(이유)를 함께 설명할 것. 현업에서 쓰는 일반적인 방식으로 만들고 싶어 함.
-- 이전에 `~/Projects/NowGo_Busan` 프로젝트에서 CLAUDE.md / GPT 지침서(하네스 엔지니어링)를 써 봤고, 이번에도 할 예정.
-
 ## 1. 프로젝트 한 줄 요약
 
 연구실 서버에 있는 **TFT 기반 남조류(녹조) 예측모델**과 **RAG 챗봇**을 웹 서비스로 만들어, Render/Vercel 없이 **연구실 서버 한 대에서 Docker Compose로 배포**한다.
@@ -119,6 +112,7 @@ httpx==0.28.1
 - [x] 프론트: Vite react-ts (React 19, Vite 8, TypeScript 6, ESLint), proxy 설정
 - [x] 프론트에서 `/api/health` 호출 성공 (화면에 "백엔드 상태: ok")
 - [x] 루트 `.gitignore`
+- [x] AI 지침서: 본문은 `AGENTS.md`, `CLAUDE.md`는 `@AGENTS.md`로 불러옴. 짧게 유지하고 AI가 실수할 때마다 한 줄씩 추가
 - [ ] `README.md`, `.editorconfig`, `.env.example`, `docs/` 정리
 
 ### 이번에 정한 것
@@ -143,12 +137,11 @@ httpx==0.28.1
 
 ### 다음 순서
 
-1. AI 지침서: 본문은 `AGENTS.md`, `CLAUDE.md`는 `@AGENTS.md`로 불러오고 Claude 전용만 추가. 짧게 시작해 실수할 때마다 한 줄씩 추가. 넣을 것: 프로젝트 요약, 확정 버전(임의 업그레이드 금지), 실행·테스트 명령, 코드 규칙, 금지사항(.env 커밋·연구실 코드 커밋·모델 파일 수정·서버 GPU 1 사용·무단 패키지 추가), 완료 기준
-2. Docker Compose 뼈대 (backend + db 먼저). Docker Desktop 메모리 상한 설정
-3. 첫 테스트 (`backend/tests/test_health.py`) — 예측 API mock을 만들 때 함께 해도 됨
-4. 기본 파일: README, .editorconfig, .env.example, docs/
-5. Prettier, pre-commit, Vitest
-6. 커밋 규칙: Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`)
+1. Docker Compose 뼈대 (backend + db 먼저). Docker Desktop 메모리 상한 설정
+2. 첫 테스트 (`backend/tests/test_health.py`) — 예측 API mock을 만들 때 함께 해도 됨. 만들면 `AGENTS.md` 백엔드 검사 명령의 "`pytest`는 생략" 문구 삭제
+3. 기본 파일: README, .editorconfig, .env.example, docs/
+4. Prettier, pre-commit, Vitest
+5. `.claude/settings.json`의 `permissions.deny`로 `.env` 읽기 차단 (지침서 글 대신 도구로 강제)
 
 ## 6. 연구실 서버 정보 (2026-10-08 확인)
 
