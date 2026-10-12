@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -10,6 +12,7 @@ class Settings(BaseSettings):
     postgres_db: str
     postgres_host: str = "db"
     postgres_port: int = 5432
+    predict_backend: Literal["mock", "tft"] = "mock"
 
     @property
     def database_url(self) -> URL:
