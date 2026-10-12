@@ -215,7 +215,7 @@ models/{강}/{지점}/
 권한을 받은 뒤 확인:
 ```bash
 docker ps
-docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu22.04 nvidia-smi
+docker run --rm --gpus device=0 nvidia/cuda:12.2.0-base-ubuntu22.04 nvidia-smi
 ```
 
 ## 8. 공용 서버 운영 수칙
@@ -239,7 +239,8 @@ services:
 ```
 
 - 다른 사람이 쓰는 GPU와 겹치지 않게 번호 지정
-- 가끔 `docker system prune`으로 오래된 이미지 정리
+- 오래된 이미지는 **이 프로젝트 것만** 정리한다. Dockerfile에 `LABEL project=algae-rag`를 넣고 `docker image prune --filter "label=project=algae-rag"`로 지운다
+- `docker system prune`, `docker builder prune`은 쓰지 않는다. Docker 데몬을 서버 전체가 같이 쓰므로 다른 연구원의 중지된 컨테이너·미사용 네트워크·dangling 이미지·빌드 캐시까지 지운다
 - 연구실에 "이 서비스를 이 GPU로 상시 실행 중" 공유
 - 외부 공개 전 교수님/관리자에게 확인
 - 홈 폴더 권한 확인 (`ls -ld ~`), 필요하면 `chmod 700 ~` — `.env`(API 키), SSH 키 보호

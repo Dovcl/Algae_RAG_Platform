@@ -22,7 +22,9 @@ TFT 남조류 예측모델과 RAG 챗봇을 연구실 서버 한 대에서 Docke
 ## 버전 (임의로 올리지 않는다)
 - Python 3.11 (venv는 반드시 `python3.11`로. 맥의 `python3`는 anaconda 3.12)
 - torch 2.5.1, numpy 1.26.4(2.x 금지), pandas 2.1.4(3.x 금지), scikit-learn 1.7.2
-- 패키지는 `==`로 고정. 새 패키지는 먼저 묻고 추가한다.
+- Python 패키지(`requirements*.txt`)는 `==`로 고정한다.
+- 프론트 패키지는 `package-lock.json`으로 고정한다. lock 파일을 커밋하고, 지우거나 새로 만들지 않는다.
+- 새 패키지(Python·npm 모두)는 먼저 묻고 추가한다.
 
 ## 하지 말 것
 - `.env`, 모델 파일(`*.pt`, `*.joblib`), 데이터, 연구실 코드(`TFT_*.py`, `관련파일/`)를 커밋하지 않는다.
@@ -30,6 +32,7 @@ TFT 남조류 예측모델과 RAG 챗봇을 연구실 서버 한 대에서 Docke
 - 서버 GPU 1을 쓰지 않는다 (다른 연구원 사용 중). GPU 0만.
 - 예측 전처리 순서와 단계 분류 기준(`DEV_PLAN.md` 5장)을 바꾸지 않는다.
 - Docker 이미지 태그에 `latest`를 쓰지 않는다.
+- 서버에서 `docker system prune`, `docker builder prune`을 쓰지 않는다 (같은 Docker 데몬을 쓰는 다른 연구원의 자원까지 지운다). 정리는 `DEV_PLAN.md` 8장 방식으로.
 
 ## 작업별로 읽을 문서
 | 작업 | 문서 |

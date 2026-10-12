@@ -9,7 +9,10 @@ function App() {
 
   useEffect(() => {
     fetch('/api/health')
-      .then((res) => res.json() as Promise<HealthResponse>)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json() as Promise<HealthResponse>
+      })
       .then((data) => setHealth(data.status))
       .catch(() => setHealth('연결 실패'))
   }, [])

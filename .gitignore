@@ -24,5 +24,4 @@ data/
 *.docx
 *.pptx
 ~$*
-TFT_TL_PLOT.py
-TFT_train_each_location.py
+TFT_*.py
