@@ -1,6 +1,6 @@
 # KCI RAG 챗봇 웹 서비스 개발 계획
 
-> 최종 수정: 2026-10-12 · 지금까지 논의한 내용 정리. 폴더와 파일은 명령어를 직접 입력하면서 단계별로 같이 만든다.
+> 최종 수정: 2026-10-13 · 지금까지 논의한 내용 정리. 폴더와 파일은 명령어를 직접 입력하면서 단계별로 같이 만든다.
 
 ## 1. 개요
 
@@ -299,7 +299,7 @@ Algae_RAG_Platform/
 - [x] 2. Frontend: Vite로 React + TypeScript 프로젝트 생성, proxy 설정
 - [x] 3. Backend: FastAPI 기본 앱, `/api/health` 엔드포인트, venv
 - [x] 4. 프론트에서 `/api/health` 호출해 연결 확인
-- [ ] 5. Docker Compose에 db(PostgreSQL + pgvector) 추가, SQLAlchemy + Alembic 연결
+- [x] 5. Docker Compose에 db(PostgreSQL + pgvector) 추가, SQLAlchemy + Alembic 연결 — `chat_logs` 테이블, `/api/health/db`. pgvector extension은 RAG 단계에서
 - [ ] 6. 예측 API를 mock으로 연결 (`/api/predict`, 22개 지점 목록, 분위수·단계 응답 형태)
 - [ ] 6-1. (서버) 모델 변환 스크립트 실행 → weights / config / scaler
 - [ ] 6-2. mock을 실제 TFT 예측으로 교체

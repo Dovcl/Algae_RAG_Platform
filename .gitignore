@@ -19,6 +19,9 @@ data/
 # OS / 에디터
 .DS_Store
 
+# 개인 학습 기록
+STUDY_LOG.md
+
 # 연구 자료 (저장소 밖에서 관리)
 관련파일/
 *.docx

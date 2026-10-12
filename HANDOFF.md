@@ -1,6 +1,6 @@
 # 인수인계: 녹조 예측 + RAG 챗봇 웹 서비스 (KCI)
 
-> 작성: 2026-10-12 (같은 날 밤 진행 상황 갱신) · 이전 대화의 흐름과 결정 사항을 다음 작업자(AI)가 이어받기 위한 문서.
+> 작성: 2026-10-12 (진행 상황 갱신: 2026-10-13) · 이전 대화의 흐름과 결정 사항을 다음 작업자(AI)가 이어받기 위한 문서.
 > 상세 설계는 같은 폴더의 `DEV_PLAN.md`를 함께 읽을 것. 이 문서는 그 이후 바뀐 점과 현재 진행 상황을 담는다.
 
 ## 1. 프로젝트 한 줄 요약
@@ -55,7 +55,7 @@
 | Node.js | 24 LTS | 맥에 설치된 v24.13.0 사용. nvm은 설치하지 않음 |
 | PostgreSQL | `pgvector/pgvector:pg16` | |
 
-### backend/requirements.txt (확정안, 2026-10-12)
+### backend/requirements.txt (확정안, 2026-10-12 · DB 부분 2026-10-13 갱신)
 
 웹 패키지 버전은 PyPI 최신 안정 버전으로, Python 3.11 / macOS arm64에서 충돌 없이 설치되는 것을 확인함.
 
@@ -71,11 +71,11 @@ uvicorn[standard]==0.54.0
 pydantic-settings==2.15.0
 python-dotenv==1.2.4
 
-# --- DB (5단계에서 주석 해제) ---
-# sqlalchemy
-# alembic
-# psycopg2-binary
-# pgvector
+# --- DB ---
+sqlalchemy==2.1.4
+alembic==1.20.0
+psycopg[binary]==3.3.6
+# pgvector                      # RAG 단계에서 주석 해제
 
 # --- 예측모델 TFT (6단계에서 주석 해제) ---
 # 학습 환경(np2-environment.yml)과 버전을 반드시 맞출 것. 임의로 올리지 말 것.
@@ -98,24 +98,31 @@ httpx==0.28.1
 
 - 사용자가 예전 NowGo_Busan의 requirements.txt를 재사용하려 했으나 **numpy 2.4.6 / pandas 3.0.3이 모델 환경과 충돌**하고, 지도·좌표·로그인 관련 불필요 패키지가 많아서 새로 만들기로 함. 주석으로 용도별 묶는 형식만 차용.
 
-## 5. 현재 진행 상황 (2026-10-12 밤 기준)
+## 5. 현재 진행 상황 (2026-10-13 기준)
 
-첫 목표였던 **"프론트에서 `/api/health` 호출 성공"까지 완료**하고 첫 커밋을 GitHub에 올렸다.
+`DEV_PLAN.md` 11장의 **5단계(DB 연결)까지 완료**. 다음은 6단계(예측 API mock)와 RAG.
 
 - [x] 서버 환경 확인 (아래 6장)
 - [x] 예측모델 코드 분석 (`DEV_PLAN.md` 5장)
 - [x] 버전 확정, requirements 확정
 - [ ] **관리자에게 Docker 권한 요청** (메시지 초안은 `DEV_PLAN.md` 7장)
-- [x] GitHub 저장소: `Dovcl/Algae_RAG_Platform` (Private), SSH로 연결, `main`에 첫 커밋 push
+- [x] GitHub 저장소: `Dovcl/Algae_RAG_Platform` (Private), SSH로 연결
 - [x] 로컬 프로젝트 폴더: `~/Projects/Algae_RAG_Platform` 으로 확정
-- [x] 백엔드: `backend/.venv` (Python 3.11.4), requirements 설치, `/api/health`
+- [x] 백엔드: `backend/.venv` (Python 3.11.4), `/api/health`
 - [x] 프론트: Vite react-ts (React 19, Vite 8, TypeScript 6, ESLint), proxy 설정
 - [x] 프론트에서 `/api/health` 호출 성공 (화면에 "백엔드 상태: ok")
-- [x] 루트 `.gitignore`
+- [x] 루트 `.gitignore`, `.env.example`
 - [x] AI 지침서: 본문은 `AGENTS.md`, `CLAUDE.md`는 `@AGENTS.md`로 불러옴. 짧게 유지하고 AI가 실수할 때마다 한 줄씩 추가
-- [ ] `README.md`, `.editorconfig`, `.env.example`, `docs/` 정리
+- [x] Docker Compose 뼈대: `backend` + `db`(`pgvector/pgvector:pg16`), healthcheck, `docker-compose.override.yml`로 개발용 `--reload`
+- [x] SQLAlchemy + Alembic 연결, `/api/health/db`
+- [x] `chat_logs` 테이블 (`question`, `answer`, `created_at`) — 검색 문서·응답 시간 열은 RAG 단계에서 추가
+- [ ] 첫 테스트 (`backend/tests/`)
+- [ ] 예측 API mock (`GET /api/locations`, `POST /api/predict`)
+- [ ] RAG: 문서 확정 → chunking·적재 스크립트 → 검색 → LLM 응답
+- [ ] `frontend/Dockerfile`, `nginx/nginx.conf`, `docker-compose.gpu.yml`
+- [ ] `README.md`, `.editorconfig`, `docs/` 정리
 
-### 이번에 정한 것
+### 지금까지 정한 것
 
 | 항목 | 결정 | 이유 |
 |---|---|---|
@@ -127,21 +134,47 @@ httpx==0.28.1
 | 린터 | ESLint (Oxlint 아님) | 현업 표준, 계획한 도구 구성 |
 | 연구실 코드 | `TFT_*.py`, `관련파일/`, `*.docx`, `*.pptx`는 **git에 올리지 않음** (`.gitignore`) | 연구실 자산 |
 | 커밋 | 사용자가 직접 입력. `Co-Authored-By` 줄 없이 | 사용자 요청 |
+| DB 드라이버 | `psycopg[binary]` 3 (`postgresql+psycopg`) | psycopg2의 후속. SQLAlchemy 2.x 권장 |
+| DB 설정 | `app/core/config.py`의 `Settings`가 `POSTGRES_*`를 읽어 `database_url` 생성 | 접속 정보를 코드에서 분리, 비밀번호 특수문자 안전 |
+| 개발 실행 | `docker compose up` (override가 `./backend`를 마운트하고 `--reload`) | DB가 컨테이너 안에만 있음 |
+| 백엔드 포트 | `127.0.0.1:8000`으로만 공개 | 같은 네트워크의 다른 기기에서 접근 차단 |
+| 이미지 라벨 | Dockerfile에 `LABEL project=algae-rag` | 서버에서 이 프로젝트 이미지만 정리 (`DEV_PLAN.md` 8장) |
+| 학습 기록 | `STUDY_LOG.md` (git 제외, AI가 직접 써도 됨) | 파일별 용도와 이유를 남기기 위해 |
+| RAG 개발 장소 | 맥에서 chunking·적재·검색까지 만들고, 서버에서는 적재 스크립트를 다시 실행 | 서버로 넘어가는 것은 코드와 원본 문서. 벡터는 같은 임베딩 모델이면 재현됨 |
+
+### 팀 과업과의 대응
+
+| 팀 과업 | 맥에서 | 서버에서 |
+|---|---|---|
+| 1. 관리문서 정리·chunking·적재 (출처: 문서명, 페이지, section, chunk ID) | 전부 | PDF 복사 후 적재 스크립트 재실행 |
+| 2. 검색 파이프라인 (임베딩 → 검색 → 컨텍스트 → LLM) | 전부 | 그대로 동작 |
+| 3. DB·예측모델 연결 | API 형태, mock 예측, 샘플 데이터, LLM 컨텍스트 구획 | 모델 변환, mock → 실제 예측, 실제 데이터 |
+
+과업 3의 "현재값 / 미래 예측값 / 관리문서 정보를 LLM이 구분해서 사용"은 프롬프트에 구획을 나눠 넣는 일이라 mock 값으로 맥에서 완성할 수 있다. 서버에서는 값의 출처만 바뀐다.
 
 ### 알아 둘 것
 
 - 맥의 `python3`는 anaconda 3.12.7이다. venv는 반드시 `python3.11`로 만든다.
+- **venv에서 `uvicorn`을 직접 띄우면 DB에 붙지 못한다.** `db`가 포트를 밖으로 열지 않고 `postgres_host` 기본값이 `db`이기 때문. `/api/health`는 되지만 `/api/health/db`는 실패한다. DB가 필요한 작업은 `docker compose up`으로 한다.
+- 마이그레이션은 컨테이너 안에서 실행한다 (`docker compose exec backend alembic upgrade head`).
+- pgvector는 이미지에만 들어 있다. Python 패키지는 주석 상태이고 `CREATE EXTENSION vector`도 아직 안 했다. RAG 첫 마이그레이션에서 함께 한다.
+- 임베딩 모델을 정하면 벡터 차원이 테이블 정의에 고정된다. 바꾸면 전부 다시 적재해야 하므로 적재 전에 확정한다.
+- 적재는 반드시 다시 실행할 수 있는 스크립트로 만든다 (중복 없이). 서버 이전 때 그대로 돌린다.
 - pytest로 FastAPI `TestClient`를 쓰면 "`httpx` 대신 `httpx2`를 설치하라"는 Starlette deprecated 경고가 뜬다. 동작은 정상. 첫 테스트를 쓸 때 `requirements-dev.txt`를 정리한다.
 - 모델 변환 스크립트(`scripts/export_models.py`)와 `app/ml/`의 TFT 클래스는 학습 코드의 모델 정의를 옮겨 와야 한다. **그 단계 전에 모델 구조 코드를 Private 저장소에 올려도 되는지 연구실에 확인**할 것. 안 되면 서버에만 두고 volume으로 연결한다.
 - `src/App.css`는 템플릿에 딸려 온 파일로 현재 쓰지 않는다.
 
 ### 다음 순서
 
-1. Docker Compose 뼈대 (backend + db 먼저). Docker Desktop 메모리 상한 설정
-2. 첫 테스트 (`backend/tests/test_health.py`) — 예측 API mock을 만들 때 함께 해도 됨. 만들면 `AGENTS.md` 백엔드 검사 명령의 "`pytest`는 생략" 문구 삭제
-3. 기본 파일: README, .editorconfig, .env.example, docs/
-4. Prettier, pre-commit, Vitest
-5. `.claude/settings.json`의 `permissions.deny`로 `.env` 읽기 차단 (지침서 글 대신 도구로 강제)
+1. 서버 쪽 대기 항목 보내기: Docker 권한 요청, `pip show pykalman`, 데이터 시점 간격(일/주), 모델 코드 저장소 반입 가능 여부
+2. 예측 API mock + 첫 테스트 (`backend/tests/`). 만들면 `AGENTS.md` 백엔드 검사 명령의 "`pytest`는 생략" 문구 삭제
+3. RAG 결정: 사용할 공식 문서, 임베딩 모델, LLM(외부 API)
+4. RAG 적재: `documents`/`chunks` 테이블(출처 정보 + 벡터), chunking·적재 스크립트
+5. RAG 검색 + `/api/chat` (스트리밍), `chat_logs`에 검색 문서·응답 시간 열 추가
+6. 프론트 화면: 지점 선택·예측 결과, 챗봇
+7. Nginx + 프론트 Dockerfile로 맥에서 전체 구조 실행
+8. 기본 파일(README, .editorconfig), Prettier, pre-commit, Vitest
+9. `.claude/settings.json`의 `permissions.deny`로 `.env` 읽기 차단 (지침서 글 대신 도구로 강제)
 
 ## 6. 연구실 서버 정보 (2026-10-08 확인)
 
