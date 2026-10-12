@@ -210,7 +210,7 @@ httpx==0.28.1
 
 ### 다음 순서
 
-1. 서버 쪽 대기 항목 보내기: Docker 권한 요청, `pip show pykalman`, 데이터 시점 간격(일/주), 모델 코드 저장소 반입 가능 여부
+1. 서버 쪽 대기 항목 보내기: Docker 권한 요청, `pip show pykalman`, 모델 코드 저장소 반입 가능 여부
 2. 예측 API mock + 첫 테스트 (`backend/tests/`). `PREDICT_BACKEND` 설정을 이때 넣는다. 만들면 `AGENTS.md` 백엔드 검사 명령의 "`pytest`는 생략" 문구 삭제
 3. RAG 결정: 사용할 공식 문서, 임베딩 모델, Ollama 모델
 4. RAG 적재: `documents`/`chunks` 테이블(출처 정보 + 벡터), chunking·적재 스크립트
@@ -237,9 +237,10 @@ httpx==0.28.1
 ## 7. 예측모델 요약 (상세는 DEV_PLAN.md 5장)
 
 - 코드: `TFT_train_each_location.py`, `TFT_TL_PLOT.py` (이 폴더에 복사본 있음)
-- PyTorch TFT, **22개 지점별 개별 모델** (낙동강 12, 한강 5, 영산강 2, 금강 3), 전이학습 버전 사용
+- PyTorch TFT, **21개 지점별 개별 모델** (낙동강 12, 한강 4, 영산강 2, 금강 3), 전이학습 버전 사용. 2026-10-13 서버 폴더로 확인. 코드의 지점 목록에는 한강 `HGDG`가 더 있지만 최종 모델은 없다. 지점 코드는 `DEV_PLAN.md` 5장
 - 예측 대상: 남조류 세포수(Cyanocell), 분위수 [0.2, 0.5, 0.8], 출력은 `log10(1+x)` → 단계 0~4 (1천/1만/10만/100만 cells/mL 기준)
-- 입력 10종(Cyanocell, WT, Chla, TN, TP, WL, Discharge, Temp, Prec, Forecast), 과거 2 + 미래 1시점, 고정 변수 season
+- 입력 10종(Cyanocell, WT, Chla, TN, TP, WL, Discharge, Temp, Prec, Forecast), 과거 2 + 미래 1시점, 고정 변수 season. **주 단위** 데이터, `Forecast`는 예보 최고기온. 운영 입력은 과거 2주 관측값 + 예측 주의 예보값
+- 지점별 입력 CSV는 2023-12-25까지. 통합 DB 6종(`INTEGRATED_DB/`, 2026년 4~6월까지)이 따로 있으나 여기서 모델 입력을 만드는 코드는 없다 → 당장은 **과거 주 조회**만 가능
 - 전처리: 칼만 필터 보간 → log10(1+x) → MinMaxScaler(학습구간 ~2021 fit) → 타깃 열 맨 앞
 - 모델 파일: `/data/s3/uoswem926/LLM_RAG/selected pickle/{강}/{지점}_final/*.pt` (지점당 1개), 성능표 `MODEL3_LOC_final_results.csv`
 - 웹 연동 이슈: scaler 미저장, `torch.save(model)` 통째 저장(`__main__` 클래스 의존), 모델 내부에 `cuda:0` 고정 → **변환 스크립트로 weights + config.json + scaler.joblib 추출** 예정
@@ -248,8 +249,9 @@ httpx==0.28.1
 
 - 서버 Docker 권한, 컨테이너 GPU(NVIDIA Container Toolkit)
 - pykalman 버전
-- 데이터 시점 간격(일/주) — `~/LLM_RAG/DATA/{강}/` CSV로 확인
-- `Forecast` 변수 의미, 웹에서 최신 입력 데이터를 어디서 받을지 → "오늘 기준 예측" vs "과거 기간 결과 조회" 화면 결정
+- 통합 DB에서 최신 모델 입력을 만드는 변환을 할지 (하기 전까지 예측 화면은 2023년까지의 과거 주 조회)
+- 통합 DB 6종을 PostgreSQL에 넣을지, CSV를 그대로 읽을지
+- 데이터 QA: JSCG 강수 컬럼 이름 등 (`DEV_PLAN.md` 5장)
 - 임베딩 모델, Ollama에서 쓸 모델 (LLM은 당분간 Ollama로 결정)
 - API 약속(엔드포인트·요청·응답 형태) — 예: `GET /api/locations`, `POST /api/predict`. FastAPI OpenAPI + openapi-typescript로 타입 공유 제안함
 - 도메인, 외부 공개 범위와 연구실 승인
@@ -261,5 +263,6 @@ httpx==0.28.1
 | `DEV_PLAN.md` | 전체 개발 계획 (아키텍처, 결정 이유, 모델 분석, 서버 환경, 폴더 구조, 진행 단계) |
 | `HANDOFF.md` | 이 문서 |
 | `TFT_TL_PLOT.py`, `TFT_train_each_location.py` | 예측모델 코드 사본 (git 제외) |
+| 서버 `LLM_RAG/algae_forecast_project_overview.html` | 데이터·모델·코드 인수인계서 (기준일 2026-09-04). 맥 사본은 `~/Downloads/`. 핵심은 `DEV_PLAN.md` 5장에 옮김 |
 | `#. RAG-녹조예측/` | 참고 논문, 미팅 자료(KCI 논문화 설계 보고서 등) |
 | `RQ 취합 및 실험 설계안_26-09-04_TS (1).docx` | 연구 질문·실험 설계 |
