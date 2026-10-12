@@ -339,7 +339,7 @@ Algae_RAG_Platform/
 - [x] 3. Backend: FastAPI 기본 앱, `/api/health` 엔드포인트, venv
 - [x] 4. 프론트에서 `/api/health` 호출해 연결 확인
 - [x] 5. Docker Compose에 db(PostgreSQL + pgvector) 추가, SQLAlchemy + Alembic 연결 — `chat_logs` 테이블, `/api/health/db`. pgvector extension은 RAG 단계에서
-- [ ] 6. 예측 API를 mock으로 연결 (`/api/predict`, 21개 지점 목록, 분위수·단계 응답 형태)
+- [x] 6. 예측 API를 mock으로 연결 (`/api/predict`, 21개 지점 목록, 분위수·단계 응답 형태) — 요청은 지점 + 선택적 `target_date`, 테스트 17개
 - [ ] 6-1. (서버) 모델 변환 스크립트 실행 → weights / config / scaler
 - [ ] 6-2. mock을 실제 TFT 예측으로 교체
 - [ ] 7. RAG 파이프라인 (문서 적재 → 임베딩 → 검색 → LLM 응답, 스트리밍)

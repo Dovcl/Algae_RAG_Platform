@@ -17,7 +17,7 @@ TFT 남조류 예측모델과 RAG 챗봇을 연구실 서버 한 대에서 Docke
 ## 명령어
 - 백엔드 실행: 프로젝트 루트에서 `docker compose up` (backend + db, 코드 수정 시 자동 재시작). venv에서 `uvicorn`을 직접 띄우면 DB에 붙지 못한다.
 - DB 마이그레이션: `docker compose exec backend alembic upgrade head`
-- 백엔드 검사: `cd backend && source .venv/bin/activate && ruff check . && ruff format --check . && pytest` (테스트가 아직 없으면 `pytest`는 생략)
+- 백엔드 검사: `cd backend && source .venv/bin/activate && ruff check . && ruff format --check . && pytest`
 - 프론트 실행: `cd frontend && npm run dev`
 - 프론트 검사: `npm run lint && npm run build`
 

@@ -93,14 +93,14 @@ psycopg[binary]==3.3.6
 
 ruff==0.17.0
 pytest==9.1.1
-httpx==0.28.1
+httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprecated
 ```
 
 - 사용자가 예전 NowGo_Busan의 requirements.txt를 재사용하려 했으나 **numpy 2.4.6 / pandas 3.0.3이 모델 환경과 충돌**하고, 지도·좌표·로그인 관련 불필요 패키지가 많아서 새로 만들기로 함. 주석으로 용도별 묶는 형식만 차용.
 
 ## 5. 현재 진행 상황 (2026-10-13 기준)
 
-`DEV_PLAN.md` 11장의 **5단계(DB 연결)까지 완료**. 다음은 6단계(예측 API mock)와 RAG.
+`DEV_PLAN.md` 11장의 **6단계(예측 API mock)까지 완료**. 다음은 프론트 예측 화면과 RAG.
 
 - [x] 서버 환경 확인 (아래 6장)
 - [x] 예측모델 코드 분석 (`DEV_PLAN.md` 5장)
@@ -116,8 +116,9 @@ httpx==0.28.1
 - [x] Docker Compose 뼈대: `backend` + `db`(`pgvector/pgvector:pg16`), healthcheck, `docker-compose.override.yml`로 개발용 `--reload`
 - [x] SQLAlchemy + Alembic 연결, `/api/health/db`
 - [x] `chat_logs` 테이블 (`question`, `answer`, `created_at`) — 검색 문서·응답 시간 열은 RAG 단계에서 추가
-- [ ] 첫 테스트 (`backend/tests/`)
-- [ ] 예측 API mock (`GET /api/locations`, `POST /api/predict`)
+- [x] 예측 API mock: `GET /api/locations`(21개 지점), `POST /api/predict`(분위수 3개 + 단계). `PREDICT_BACKEND=mock`. 구조는 `app/ml/`(`locations.py`, `predictor.py`, `mock.py`) + `app/routers/predict.py`
+- [x] 첫 테스트: `backend/tests/` 17개 (health, 예측 주소, 단계 분류 경계값). `pytest.ini`, `conftest.py`
+- [ ] 프론트 예측 화면 (지점 선택 → 예측 결과)
 - [ ] RAG: 문서 확정 → chunking·적재 스크립트 → 검색 → LLM 응답
 - [ ] `frontend/Dockerfile`, `nginx/nginx.conf`, `docker-compose.gpu.yml`
 - [ ] `README.md`, `.editorconfig`, `docs/` 정리
@@ -170,7 +171,7 @@ httpx==0.28.1
 - `chat_logs`에 provider와 모델 이름 열을 추가한다. mock 답변이 논문 실험 데이터에 섞이면 나중에 가려낼 수 없다.
 - 맥에서는 Ollama를 맥에 직접 설치해 돌린다. 컨테이너 안에서 `localhost:11434`는 통하지 않으므로 `host.docker.internal`을 쓴다.
 - 서버에서는 Ollama도 컨테이너로 올려 GPU 0에 묶는다. Docker 권한과 NVIDIA Container Toolkit이 필요하다.
-- Ollama 호출에 HTTP 클라이언트가 필요하다. `httpx`가 지금은 `requirements-dev.txt`에만 있으므로 실행용으로 옮길지 사용자에게 먼저 묻는다.
+- Ollama 호출에 HTTP 클라이언트가 필요하다. `httpx2`가 지금은 `requirements-dev.txt`에만 있으므로 실행용(`requirements.txt`)으로 옮길지 사용자에게 먼저 묻는다.
 
 ### 참고 프로젝트: `~/Documents/GitHub/careerfit_ai_new` (사용자의 이전 RAG 프로젝트)
 
@@ -204,18 +205,18 @@ httpx==0.28.1
 - pgvector는 이미지에만 들어 있다. Python 패키지는 주석 상태이고 `CREATE EXTENSION vector`도 아직 안 했다. RAG 첫 마이그레이션에서 함께 한다.
 - 임베딩 모델을 정하면 벡터 차원이 테이블 정의에 고정된다. 바꾸면 전부 다시 적재해야 하므로 적재 전에 확정한다.
 - 적재는 반드시 다시 실행할 수 있는 스크립트로 만든다 (중복 없이). 서버 이전 때 그대로 돌린다.
-- pytest로 FastAPI `TestClient`를 쓰면 "`httpx` 대신 `httpx2`를 설치하라"는 Starlette deprecated 경고가 뜬다. 동작은 정상. 첫 테스트를 쓸 때 `requirements-dev.txt`를 정리한다.
+- `TestClient`용 HTTP 클라이언트는 `httpx2`를 쓴다 (2026-10-13 교체). `httpx`를 쓰면 Starlette deprecated 경고가 뜬다. venv에 `httpx`가 남아 있으면 `pip uninstall httpx`.
 - 모델 변환 스크립트(`scripts/export_models.py`)와 `app/ml/`의 TFT 클래스는 학습 코드의 모델 정의를 옮겨 와야 한다. **그 단계 전에 모델 구조 코드를 Private 저장소에 올려도 되는지 연구실에 확인**할 것. 안 되면 서버에만 두고 volume으로 연결한다.
 - `src/App.css`는 템플릿에 딸려 온 파일로 현재 쓰지 않는다.
 
 ### 다음 순서
 
 1. 서버 쪽 대기 항목 보내기: Docker 권한 요청, `pip show pykalman`, 모델 코드 저장소 반입 가능 여부
-2. 예측 API mock + 첫 테스트 (`backend/tests/`). `PREDICT_BACKEND` 설정을 이때 넣는다. 만들면 `AGENTS.md` 백엔드 검사 명령의 "`pytest`는 생략" 문구 삭제
+2. 프론트 예측 화면: 지점 선택 → `/api/predict` 결과 표시 (분위수 범위, 단계 색)
 3. RAG 결정: 사용할 공식 문서, 임베딩 모델, Ollama 모델
 4. RAG 적재: `documents`/`chunks` 테이블(출처 정보 + 벡터), chunking·적재 스크립트
 5. RAG 검색 + `/api/chat` (스트리밍). `LLM_PROVIDER` 설정을 이때 넣는다. `chat_logs`에 검색 문서·응답 시간·provider·모델 열 추가
-6. 프론트 화면: 지점 선택·예측 결과, 챗봇
+6. 프론트 챗봇 화면
 7. Nginx + 프론트 Dockerfile로 맥에서 전체 구조 실행
 8. 기본 파일(README, .editorconfig), Prettier, pre-commit, Vitest
 9. `.claude/settings.json`의 `permissions.deny`로 `.env` 읽기 차단 (지침서 글 대신 도구로 강제)
