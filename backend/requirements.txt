@@ -6,10 +6,10 @@ uvicorn[standard]==0.54.0
 pydantic-settings==2.15.0
 python-dotenv==1.2.4
 
-# --- DB (5단계에서 주석 해제) ---
-# sqlalchemy
-# alembic
-# psycopg2-binary
+# --- DB ---
+sqlalchemy==2.1.4
+alembic==1.20.0
+psycopg[binary]==3.3.6
 # pgvector
 
 # --- 예측모델 TFT (6단계에서 주석 해제) ---
