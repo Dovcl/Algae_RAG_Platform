@@ -90,7 +90,7 @@ def chat(
             if result.observed is None
             else CurrentStatus(
                 date=result.base_date,
-                cells_per_ml=round(to_cells(result.observed), 1),
+                cells_per_ml=round(to_cells(result.observed)),
             )
         ),
         forecast_status=ForecastStatus(

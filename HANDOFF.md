@@ -123,7 +123,9 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 - [x] 시계열 API: `GET /api/timeseries?location=&weeks=` (주별 관측값 + 그 주에 대한 예측값, mock). 관측 자료는 `app/ml/observations.py`로 예측과 분리. 백엔드 테스트 25개
 - [x] 시각화 – 시계열 탭: 지점 선택, 기간(8주 / 12주 / 1년), 표시 토글, 요약 카드, 로그 눈금 차트(범위 띠, 단계 경계 점선), PNG 내려받기. 지점·기간은 주소(`?location=&weeks=`)에 둔다
 - [ ] 시각화 – 지도 탭, 상세 플롯 탭
-- [ ] 채팅 화면 (고정 예시 답변 → `/api/chat`)
+- [x] 채팅 API mock: `POST /api/chat` (`LLM_PROVIDER=mock`). 응답 필드는 실험 설계안의 출력 형식(`current_status`, `forecast_status`, `risk_level`, `management_actions`, `evidence`, `limitations`, `answer`). 숫자는 관측·예측 모듈에서, 조치와 출처는 예시. 백엔드 테스트 34개
+- [x] 채팅 화면: 근거 카드 3장(현재 관측 / 미래 예측 / 관리지침), 본문과 출처 번호, 권고 조치, 한계 안내, 출처 목록, "시계열에서 보기", 추천 질의, 오류와 다시 시도
+- [ ] 채팅에 아직 없는 것: 실제 LLM(Ollama), 문서 검색, 스트리밍, Case 전환(C1~C4), 대화 기록 저장
 - [ ] RAG: 문서 확정 → chunking·적재 스크립트 → 검색 → LLM 응답
 - [ ] DB 조회 모듈, Case 전환(C1~C4), 구조화된 출력, 실험 실행 도구 (`DEV_PLAN.md` 13장)
 - [ ] `frontend/Dockerfile`, `nginx/nginx.conf`, `docker-compose.gpu.yml`
@@ -152,6 +154,10 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 | 화면 구성 | 이전 졸업 프로젝트(`rag-chatbot`)를 잇는다: 사이드바 + 채팅 + 시각화 탭 3개. 게시판은 넣지 않는다. 디자인만 새로 | 기능이 검증돼 있고, 달라지는 것은 모델과 실험 목적 |
 | 디자인 | Stitch 결과물(`~/Downloads/stitch_ai/`)을 참고로 React 부품을 다시 만든다. 코드는 붙여 넣지 않는다. 화면 속 수치·문구·기관명은 예시라 쓰지 않는다 | 차트·지도가 정적 그림이고, 우리 모델과 다른 내용(Eco-LSTM, 95% 신뢰구간, 여러 주 예측)이 섞여 있음 |
 | 화면 전환 | `react-router` 8 (`BrowserRouter` + `Routes`). 주소는 `/chat`, `/viz/map`, `/viz/timeseries`, `/viz/detail` | 새로고침·뒤로 가기가 되고, 채팅의 "시각화에서 보기"가 지점과 주를 주소에 담아 넘길 수 있음. 배포 때 Nginx의 `try_files ... /index.html`이 필요 (`DEV_PLAN.md` 4장에 이미 있음) |
+| 세포수 표기 | API는 cells/mL를 **정수**로 돌려준다. 답변 문장도 같은 정수를 쓴다 | 소수 한 자리로 주고 화면에서 다시 반올림하니 카드와 문장의 숫자가 1 차이 났다. 실험이 수치 일치도를 평가하므로 반올림은 한 곳에서만 한다 |
+| 대화 상태의 위치 | `AppLayout`이 들고 `Outlet`의 `context`로 내려 준다 | 채팅 화면에 두면 시각화로 갔다 올 때 사라진다. 새로고침하면 비워지며, 저장은 대화 기록 API에서 다룬다 |
+| mock 답변의 출처 표기 | 문서와 기관 이름에 "(예시)"를 붙이고 실제 기관 이름을 쓰지 않는다 | 가짜 문서를 실제 기관의 것처럼 보이게 하지 않는다 |
+| 채팅 요청의 지점·기준일 | `location`, `base_date`를 요청에 직접 넣을 수 있고, 넣으면 질문 문장보다 우선한다 | 실험은 시나리오마다 지점과 기준일이 정해져 있다. mock의 "질문에서 글자 찾기"는 진짜 구현에서 쓰지 않는다 |
 | 차트 | Chart.js 4 + `react-chartjs-2` | 이전 프로젝트에서 쓰던 것. 캔버스라 PNG 내려받기가 한 줄. 단계 점선은 직접 쓴 플러그인 |
 | 관측 자료와 예측의 분리 | `Observations`(관측)와 `Predictor`(예측)를 따로 둔다 | 실험의 C2는 DB는 있고 예측모델은 없는 조건이다. 한 덩어리면 그 조건을 만들 수 없다 |
 | 단계 판정 | 백엔드만 한다. 프론트는 응답의 `stage`를 그대로 쓰고, `lib/stages.ts`의 경계값은 차트 점선용 | 판정이 두 곳에 있으면 어긋난다 |
@@ -268,12 +274,12 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 
 1. 서버·연구실 대기 항목 보내기: Docker 권한 요청, `pip show pykalman`, 모델 코드 저장소 반입 가능 여부, 지점 좌표와 한글 이름, 위험등급 기준
 2. 시각화 – 지도 탭: 지도 라이브러리 결정(먼저 묻는다), 지점 좌표 확보, 주 선택기, 오른쪽 지점 패널
-3. 시각화 – 상세 플롯 탭(1차: 지표 카드 + 시험 기간 시계열), 채팅 화면(고정 예시 답변으로 부품부터)
+3. 시각화 – 상세 플롯 탭(1차: 지표 카드 + 시험 기간 시계열)
 4. RAG 결정: 사용할 공식 문서, 임베딩 모델, Ollama 모델과 버전
 5. RAG 적재: `documents`/`chunks` 테이블(출처 정보 + 문서 버전 메타데이터 + 벡터), chunking·적재 스크립트
 6. DB 조회 모듈 (기준일까지만 조회). 통합 DB를 PostgreSQL에 넣을지 여기서 정한다
-7. `/api/chat`: Case 전환(C1~C4), 구조화된 출력, 스트리밍. `LLM_PROVIDER` 설정을 이때 넣는다. `chat_logs`에 실험용 열 추가
-8. 프론트 채팅 화면을 `/api/chat`에 연결
+7. `/api/chat`을 mock에서 실제로: Ollama 연결, 문서 검색, Case 전환(C1~C4), 스트리밍. 응답 형태와 화면은 이미 있다. `chat_logs`에 실험용 열 추가
+8. 대화 기록 저장과 사이드바 목록
 9. 실험 실행 도구 (일괄 실행, 근거 조작, 블라인드 내보내기)
 10. Nginx + 프론트 Dockerfile로 맥에서 전체 구조 실행
 11. 기본 파일(README, .editorconfig), Prettier, pre-commit, Vitest

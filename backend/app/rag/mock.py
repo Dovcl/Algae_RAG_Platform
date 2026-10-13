@@ -116,13 +116,13 @@ def build_answer(
     current = (
         "관측값이 없습니다"
         if observed is None
-        else f"{to_cells(observed):,.0f} cells/mL로 관측됐습니다"
+        else f"{round(to_cells(observed)):,} cells/mL로 관측됐습니다"
     )
     answer = (
         f"{location.code} 지점의 유해남조류는 {base.isoformat()}에 {current}. "
         f"다음 주({forecast.target_date.isoformat()})에는 "
-        f"{to_cells(forecast.q50):,.0f} cells/mL"
-        f"(범위 {to_cells(forecast.q20):,.0f}~{to_cells(forecast.q80):,.0f})로 예측되며, "
+        f"{round(to_cells(forecast.q50)):,} cells/mL"
+        f"(범위 {round(to_cells(forecast.q20)):,}~{round(to_cells(forecast.q80)):,})로 예측되며, "
         f"{stage}단계에 해당합니다. 이 단계에서는 아래 조치가 권고됩니다 [1][2]."
     )
 

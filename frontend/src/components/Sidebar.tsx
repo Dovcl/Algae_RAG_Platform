@@ -6,11 +6,16 @@ const menu = [
   { to: '/viz', label: '시각화', icon: ChartLine },
 ]
 
-function Sidebar() {
+type SidebarProps = {
+  onNewChat: () => void
+}
+
+function Sidebar({ onNewChat }: SidebarProps) {
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white p-3">
       <Link
         to="/chat"
+        onClick={onNewChat}
         className="flex h-10 items-center justify-center gap-2 rounded bg-primary text-sm font-semibold text-white hover:bg-primary-hover"
       >
         <Plus className="size-4" />새 대화
