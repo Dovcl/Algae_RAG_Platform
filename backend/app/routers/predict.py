@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from app.ml.locations import LOCATIONS, RIVER_NAMES, Location
@@ -106,14 +106,18 @@ def timeseries(
     observations: Annotated[Observations, Depends(get_observations)],
     start: date | None = None,
     end: date | None = None,
+    weeks: Annotated[int, Query(ge=1, le=520)] = 12,
 ) -> TimeseriesResponse:
-    """지점의 주별 관측값과 그 주에 대한 예측값. 기간을 생략하면 최근 12주."""
+    """지점의 주별 관측값과 그 주에 대한 예측값.
+
+    start를 생략하면 end(생략 시 자료의 마지막 주)에서 거슬러 weeks주를 돌려준다.
+    """
     found = _find_location(location)
     if start is not None and end is not None and start > end:
         raise HTTPException(status_code=400, detail="start가 end보다 늦습니다.")
 
     points = []
-    for week in observations.weeks(found, start, end):
+    for week in observations.weeks(found, start, end, weeks):
         observed = observations.cyanocell(found, week)
         result = predictor.predict(found, week)
         points.append(

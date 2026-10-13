@@ -43,10 +43,10 @@ class MockPredictor:
 
 class MockObservations:
     def weeks(
-        self, location: Location, start: date | None, end: date | None
+        self, location: Location, start: date | None, end: date | None, count: int
     ) -> list[date]:
         last = min(end or LATEST_DATE, LATEST_DATE)
-        first = start or last - WEEK * (DEFAULT_WEEKS - 1)
+        first = start or last - WEEK * (count - 1)
 
         week = LATEST_DATE
         while week > last:

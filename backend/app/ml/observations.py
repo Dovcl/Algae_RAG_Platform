@@ -8,7 +8,7 @@ from app.ml.locations import Location
 
 class Observations(Protocol):
     def weeks(
-        self, location: Location, start: date | None, end: date | None
+        self, location: Location, start: date | None, end: date | None, count: int
     ) -> list[date]: ...
 
     def cyanocell(self, location: Location, week: date) -> float | None: ...

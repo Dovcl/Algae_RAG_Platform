@@ -120,7 +120,10 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 - [x] 첫 테스트: `backend/tests/` 17개 (health, 예측 주소, 단계 분류 경계값). `pytest.ini`, `conftest.py`
 - [x] 화면 디자인: Stitch로 4개 화면 제작, 넣을 것과 뺄 것 확정 (`DEV_PLAN.md` 13장 "화면별 확정 구성")
 - [x] 프론트 공통 틀: Tailwind 디자인 토큰, 상단 띠 + 사이드바 + 본문, 주소 전환(`/chat`, `/viz/map`·`timeseries`·`detail`). 화면 내용은 아직 자리 표시
-- [ ] 프론트 화면 내용: 채팅(고정 예시 답변 → `/api/chat`), 시각화 탭 3개
+- [x] 시계열 API: `GET /api/timeseries?location=&weeks=` (주별 관측값 + 그 주에 대한 예측값, mock). 관측 자료는 `app/ml/observations.py`로 예측과 분리. 백엔드 테스트 25개
+- [x] 시각화 – 시계열 탭: 지점 선택, 기간(8주 / 12주 / 1년), 표시 토글, 요약 카드, 로그 눈금 차트(범위 띠, 단계 경계 점선), PNG 내려받기. 지점·기간은 주소(`?location=&weeks=`)에 둔다
+- [ ] 시각화 – 지도 탭, 상세 플롯 탭
+- [ ] 채팅 화면 (고정 예시 답변 → `/api/chat`)
 - [ ] RAG: 문서 확정 → chunking·적재 스크립트 → 검색 → LLM 응답
 - [ ] DB 조회 모듈, Case 전환(C1~C4), 구조화된 출력, 실험 실행 도구 (`DEV_PLAN.md` 13장)
 - [ ] `frontend/Dockerfile`, `nginx/nginx.conf`, `docker-compose.gpu.yml`
@@ -149,6 +152,9 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 | 화면 구성 | 이전 졸업 프로젝트(`rag-chatbot`)를 잇는다: 사이드바 + 채팅 + 시각화 탭 3개. 게시판은 넣지 않는다. 디자인만 새로 | 기능이 검증돼 있고, 달라지는 것은 모델과 실험 목적 |
 | 디자인 | Stitch 결과물(`~/Downloads/stitch_ai/`)을 참고로 React 부품을 다시 만든다. 코드는 붙여 넣지 않는다. 화면 속 수치·문구·기관명은 예시라 쓰지 않는다 | 차트·지도가 정적 그림이고, 우리 모델과 다른 내용(Eco-LSTM, 95% 신뢰구간, 여러 주 예측)이 섞여 있음 |
 | 화면 전환 | `react-router` 8 (`BrowserRouter` + `Routes`). 주소는 `/chat`, `/viz/map`, `/viz/timeseries`, `/viz/detail` | 새로고침·뒤로 가기가 되고, 채팅의 "시각화에서 보기"가 지점과 주를 주소에 담아 넘길 수 있음. 배포 때 Nginx의 `try_files ... /index.html`이 필요 (`DEV_PLAN.md` 4장에 이미 있음) |
+| 차트 | Chart.js 4 + `react-chartjs-2` | 이전 프로젝트에서 쓰던 것. 캔버스라 PNG 내려받기가 한 줄. 단계 점선은 직접 쓴 플러그인 |
+| 관측 자료와 예측의 분리 | `Observations`(관측)와 `Predictor`(예측)를 따로 둔다 | 실험의 C2는 DB는 있고 예측모델은 없는 조건이다. 한 덩어리면 그 조건을 만들 수 없다 |
+| 단계 판정 | 백엔드만 한다. 프론트는 응답의 `stage`를 그대로 쓰고, `lib/stages.ts`의 경계값은 차트 점선용 | 판정이 두 곳에 있으면 어긋난다 |
 | 아이콘 | `lucide-react` | 쓴 아이콘만 빌드에 들어가고 외부 서버에 의존하지 않음. Stitch의 Material Symbols와 모양은 조금 다름 |
 | 프론트 폴더 | `src/components/`(여러 화면이 같이 쓰는 부품), `src/pages/`(주소 하나에 대응하는 화면) | |
 | 스타일 | Tailwind CSS | Stitch 결과물이 Tailwind라 클래스를 거의 그대로 옮길 수 있음 |
@@ -254,12 +260,15 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 - 모델 변환 스크립트(`scripts/export_models.py`)와 `app/ml/`의 TFT 클래스는 학습 코드의 모델 정의를 옮겨 와야 한다. **그 단계 전에 모델 구조 코드를 Private 저장소에 올려도 되는지 연구실에 확인**할 것. 안 되면 서버에만 두고 volume으로 연결한다.
 - Tailwind는 코드에 글자 그대로 적힌 클래스만 CSS로 만든다. `` `bg-stage-${n}-bg` ``처럼 조립한 이름은 동작하지 않는다. 단계 색은 `index.css`의 `.stage-0`~`.stage-4`를 쓰고, 그 밖에는 클래스 이름을 통째로 적은 표(`Record`)에서 고른다.
 - 사이드바의 대화 기록은 기록 API가 생길 때까지 빈 상태로 둔다. 가짜 목록을 넣지 않는다.
+- 시계열 탭에 아직 없는 것: 수온·강수량 보조 차트(백엔드가 남조류 값만 준다), "기준 주 다음 주만 예측" 표시(지금은 모든 주에 관측값과 예측값이 함께 있는 과거 조회).
+- 프론트에서 데이터를 불러올 때는 `lib/useFetch.ts`를 쓴다(불러오는 중 / 오류 / 완료, 늦게 도착한 응답 무시). 백엔드 호출 함수와 응답 타입은 `api.ts`에 모은다.
+- AI가 코드를 줄 때는 프로젝트 밖의 임시 복사본에서 검사(ruff, pytest, lint, build)를 돌려 본 뒤 준다.
 
 ### 다음 순서
 
 1. 서버·연구실 대기 항목 보내기: Docker 권한 요청, `pip show pykalman`, 모델 코드 저장소 반입 가능 여부, 지점 좌표와 한글 이름, 위험등급 기준
-2. 프론트 화면 내용: 시각화 탭을 `/api/locations`, `/api/predict`(mock)에 먼저 연결 → 채팅 화면(고정 예시 답변으로 부품부터)
-3. 차트·지도 라이브러리 결정 (각 화면을 만들 때 묻는다)
+2. 시각화 – 지도 탭: 지도 라이브러리 결정(먼저 묻는다), 지점 좌표 확보, 주 선택기, 오른쪽 지점 패널
+3. 시각화 – 상세 플롯 탭(1차: 지표 카드 + 시험 기간 시계열), 채팅 화면(고정 예시 답변으로 부품부터)
 4. RAG 결정: 사용할 공식 문서, 임베딩 모델, Ollama 모델과 버전
 5. RAG 적재: `documents`/`chunks` 테이블(출처 정보 + 문서 버전 메타데이터 + 벡터), chunking·적재 스크립트
 6. DB 조회 모듈 (기준일까지만 조회). 통합 DB를 PostgreSQL에 넣을지 여기서 정한다
@@ -303,7 +312,7 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 - C2·C3에 넣을 고정 management context를 어떻게 만들지
 - 지점 좌표와 한글 이름 (지도용)
 - 대화 기록 범위 (로그인 없이 브라우저별 구분을 제안함)
-- 지도·차트 라이브러리
+- 지도 라이브러리
 - 단계의 공식 명칭
 - 통합 DB 6종을 PostgreSQL에 넣을지, CSV를 그대로 읽을지
 - 데이터 QA: JSCG 강수 컬럼 이름 등 (`DEV_PLAN.md` 5장)

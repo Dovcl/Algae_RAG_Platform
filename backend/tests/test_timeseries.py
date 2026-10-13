@@ -63,3 +63,17 @@ def test_timeseries_start_after_end(client):
     )
 
     assert response.status_code == 400
+
+
+def test_timeseries_weeks(client):
+    response = client.get("/api/timeseries", params={"location": "CGB", "weeks": 8})
+
+    points = response.json()["points"]
+    assert len(points) == 8
+    assert points[-1]["date"] == "2023-12-25"
+
+
+def test_timeseries_weeks_must_be_positive(client):
+    response = client.get("/api/timeseries", params={"location": "CGB", "weeks": 0})
+
+    assert response.status_code == 422
