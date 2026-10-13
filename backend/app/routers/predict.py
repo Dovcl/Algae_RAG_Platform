@@ -63,7 +63,7 @@ def _find_location(code: str) -> Location:
     return location
 
 
-def _to_quantiles(result: Prediction) -> Quantiles:
+def to_quantiles(result: Prediction) -> Quantiles:
     return Quantiles(
         q20=round(to_cells(result.q20), 1),
         q50=round(to_cells(result.q50), 1),
@@ -93,7 +93,7 @@ def predict(
         location=location.code,
         target_date=result.target_date,
         input_until=result.input_until,
-        cells_per_ml=_to_quantiles(result),
+        cells_per_ml=to_quantiles(result),
         stage=classify_stage(result.q50),
         backend=predictor.name,
     )
@@ -124,7 +124,7 @@ def timeseries(
             TimeseriesPoint(
                 date=week,
                 observed=None if observed is None else round(to_cells(observed), 1),
-                predicted=_to_quantiles(result),
+                predicted=to_quantiles(result),
                 stage=classify_stage(result.q50),
             )
         )

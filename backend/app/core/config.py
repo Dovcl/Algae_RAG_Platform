@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     postgres_host: str = "db"
     postgres_port: int = 5432
     predict_backend: Literal["mock", "tft"] = "mock"
+    llm_provider: Literal["mock", "ollama"] = "mock"
 
     @property
     def database_url(self) -> URL:

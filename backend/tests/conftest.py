@@ -7,6 +7,7 @@ os.environ.setdefault("POSTGRES_USER", "test")
 os.environ.setdefault("POSTGRES_PASSWORD", "test")
 os.environ.setdefault("POSTGRES_DB", "test")
 os.environ["PREDICT_BACKEND"] = "mock"
+os.environ["LLM_PROVIDER"] = "mock"
 
 
 @pytest.fixture
