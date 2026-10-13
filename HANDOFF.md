@@ -119,7 +119,8 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 - [x] 예측 API mock: `GET /api/locations`(21개 지점), `POST /api/predict`(분위수 3개 + 단계). `PREDICT_BACKEND=mock`. 구조는 `app/ml/`(`locations.py`, `predictor.py`, `mock.py`) + `app/routers/predict.py`
 - [x] 첫 테스트: `backend/tests/` 17개 (health, 예측 주소, 단계 분류 경계값). `pytest.ini`, `conftest.py`
 - [x] 화면 디자인: Stitch로 4개 화면 제작, 넣을 것과 뺄 것 확정 (`DEV_PLAN.md` 13장 "화면별 확정 구성")
-- [ ] 프론트 뼈대: 사이드바(대화 기록) + 채팅 + 시각화 탭(지도 / 시계열 / 상세 플롯)
+- [x] 프론트 공통 틀: Tailwind 디자인 토큰, 상단 띠 + 사이드바 + 본문, 주소 전환(`/chat`, `/viz/map`·`timeseries`·`detail`). 화면 내용은 아직 자리 표시
+- [ ] 프론트 화면 내용: 채팅(고정 예시 답변 → `/api/chat`), 시각화 탭 3개
 - [ ] RAG: 문서 확정 → chunking·적재 스크립트 → 검색 → LLM 응답
 - [ ] DB 조회 모듈, Case 전환(C1~C4), 구조화된 출력, 실험 실행 도구 (`DEV_PLAN.md` 13장)
 - [ ] `frontend/Dockerfile`, `nginx/nginx.conf`, `docker-compose.gpu.yml`
@@ -147,6 +148,9 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 | LLM·예측모델 전환 | `.env`의 `LLM_PROVIDER`(`mock`/`ollama`) + `LLM_MODEL`, `PREDICT_BACKEND`(`mock`/`tft`)로 구현을 고른다. true/false 스위치는 쓰지 않음 | 값 하나만 보면 무엇이 도는지 알 수 있고, 분기가 한 곳에만 생김. `mock`일 때는 torch 없이 실행됨 (아래 "LLM·예측모델 전환 구조") |
 | 화면 구성 | 이전 졸업 프로젝트(`rag-chatbot`)를 잇는다: 사이드바 + 채팅 + 시각화 탭 3개. 게시판은 넣지 않는다. 디자인만 새로 | 기능이 검증돼 있고, 달라지는 것은 모델과 실험 목적 |
 | 디자인 | Stitch 결과물(`~/Downloads/stitch_ai/`)을 참고로 React 부품을 다시 만든다. 코드는 붙여 넣지 않는다. 화면 속 수치·문구·기관명은 예시라 쓰지 않는다 | 차트·지도가 정적 그림이고, 우리 모델과 다른 내용(Eco-LSTM, 95% 신뢰구간, 여러 주 예측)이 섞여 있음 |
+| 화면 전환 | `react-router` 8 (`BrowserRouter` + `Routes`). 주소는 `/chat`, `/viz/map`, `/viz/timeseries`, `/viz/detail` | 새로고침·뒤로 가기가 되고, 채팅의 "시각화에서 보기"가 지점과 주를 주소에 담아 넘길 수 있음. 배포 때 Nginx의 `try_files ... /index.html`이 필요 (`DEV_PLAN.md` 4장에 이미 있음) |
+| 아이콘 | `lucide-react` | 쓴 아이콘만 빌드에 들어가고 외부 서버에 의존하지 않음. Stitch의 Material Symbols와 모양은 조금 다름 |
+| 프론트 폴더 | `src/components/`(여러 화면이 같이 쓰는 부품), `src/pages/`(주소 하나에 대응하는 화면) | |
 | 스타일 | Tailwind CSS | Stitch 결과물이 Tailwind라 클래스를 거의 그대로 옮길 수 있음 |
 | 실험 기준 문서 | `RQ 취합 및 실험 설계안_26-09-04_TS (1).docx`. 요약과 구현 요구사항은 `DEV_PLAN.md` 13장 | KCI 논문의 실험 1~3을 이 서비스로 돌린다 |
 | 예측 범위 | 2023년까지의 과거 주. 통합 DB에서 최신 입력을 만드는 변환은 KCI 범위 밖 | 설계안이 예측 질문을 시험 구간(2023년)에서 뽑으라고 함 |
@@ -248,13 +252,14 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 - 적재는 반드시 다시 실행할 수 있는 스크립트로 만든다 (중복 없이). 서버 이전 때 그대로 돌린다.
 - `TestClient`용 HTTP 클라이언트는 `httpx2`를 쓴다 (2026-10-13 교체). `httpx`를 쓰면 Starlette deprecated 경고가 뜬다. venv에 `httpx`가 남아 있으면 `pip uninstall httpx`.
 - 모델 변환 스크립트(`scripts/export_models.py`)와 `app/ml/`의 TFT 클래스는 학습 코드의 모델 정의를 옮겨 와야 한다. **그 단계 전에 모델 구조 코드를 Private 저장소에 올려도 되는지 연구실에 확인**할 것. 안 되면 서버에만 두고 volume으로 연결한다.
-- `src/App.css`는 템플릿에 딸려 온 파일로 현재 쓰지 않는다.
+- Tailwind는 코드에 글자 그대로 적힌 클래스만 CSS로 만든다. `` `bg-stage-${n}-bg` ``처럼 조립한 이름은 동작하지 않는다. 단계 색은 `index.css`의 `.stage-0`~`.stage-4`를 쓰고, 그 밖에는 클래스 이름을 통째로 적은 표(`Record`)에서 고른다.
+- 사이드바의 대화 기록은 기록 API가 생길 때까지 빈 상태로 둔다. 가짜 목록을 넣지 않는다.
 
 ### 다음 순서
 
 1. 서버·연구실 대기 항목 보내기: Docker 권한 요청, `pip show pykalman`, 모델 코드 저장소 반입 가능 여부, 지점 좌표와 한글 이름, 위험등급 기준
-2. 프론트 뼈대: Tailwind 설치와 디자인 토큰 → 공통 틀(사이드바, 상단 띠) → 채팅 화면(고정 예시 답변) → 시각화 탭. 시각화는 `/api/locations`, `/api/predict`(mock)로 먼저 연결
-3. 아이콘·차트·지도 라이브러리 결정 (각 화면을 만들 때 묻는다)
+2. 프론트 화면 내용: 시각화 탭을 `/api/locations`, `/api/predict`(mock)에 먼저 연결 → 채팅 화면(고정 예시 답변으로 부품부터)
+3. 차트·지도 라이브러리 결정 (각 화면을 만들 때 묻는다)
 4. RAG 결정: 사용할 공식 문서, 임베딩 모델, Ollama 모델과 버전
 5. RAG 적재: `documents`/`chunks` 테이블(출처 정보 + 문서 버전 메타데이터 + 벡터), chunking·적재 스크립트
 6. DB 조회 모듈 (기준일까지만 조회). 통합 DB를 PostgreSQL에 넣을지 여기서 정한다
@@ -298,7 +303,7 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 - C2·C3에 넣을 고정 management context를 어떻게 만들지
 - 지점 좌표와 한글 이름 (지도용)
 - 대화 기록 범위 (로그인 없이 브라우저별 구분을 제안함)
-- 아이콘·지도·차트 라이브러리
+- 지도·차트 라이브러리
 - 단계의 공식 명칭
 - 통합 DB 6종을 PostgreSQL에 넣을지, CSV를 그대로 읽을지
 - 데이터 QA: JSCG 강수 컬럼 이름 등 (`DEV_PLAN.md` 5장)
