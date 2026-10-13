@@ -98,9 +98,9 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 
 - 사용자가 예전 NowGo_Busan의 requirements.txt를 재사용하려 했으나 **numpy 2.4.6 / pandas 3.0.3이 모델 환경과 충돌**하고, 지도·좌표·로그인 관련 불필요 패키지가 많아서 새로 만들기로 함. 주석으로 용도별 묶는 형식만 차용.
 
-## 5. 현재 진행 상황 (2026-10-13 기준)
+## 5. 현재 진행 상황 (2026-10-14 기준)
 
-`DEV_PLAN.md` 11장의 **6단계(예측 API mock)까지 완료**. 다음은 프론트 예측 화면과 RAG.
+`DEV_PLAN.md` 11장의 **6단계(예측 API mock)까지 완료**. 다음은 프론트 뼈대와 RAG. 이 서비스는 **KCI 실험 설계안의 실험 1~3을 돌리는 평가 플랫폼**이기도 하다 (`DEV_PLAN.md` 13장).
 
 - [x] 서버 환경 확인 (아래 6장)
 - [x] 예측모델 코드 분석 (`DEV_PLAN.md` 5장)
@@ -118,8 +118,10 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 - [x] `chat_logs` 테이블 (`question`, `answer`, `created_at`) — 검색 문서·응답 시간 열은 RAG 단계에서 추가
 - [x] 예측 API mock: `GET /api/locations`(21개 지점), `POST /api/predict`(분위수 3개 + 단계). `PREDICT_BACKEND=mock`. 구조는 `app/ml/`(`locations.py`, `predictor.py`, `mock.py`) + `app/routers/predict.py`
 - [x] 첫 테스트: `backend/tests/` 17개 (health, 예측 주소, 단계 분류 경계값). `pytest.ini`, `conftest.py`
-- [ ] 프론트 예측 화면 (지점 선택 → 예측 결과)
+- [ ] 화면 디자인 (사용자가 Stitch·Figma로 제작 중)
+- [ ] 프론트 뼈대: 사이드바(대화 기록) + 채팅 + 시각화 탭(지도 / 시계열 / 상세 플롯)
 - [ ] RAG: 문서 확정 → chunking·적재 스크립트 → 검색 → LLM 응답
+- [ ] DB 조회 모듈, Case 전환(C1~C4), 구조화된 출력, 실험 실행 도구 (`DEV_PLAN.md` 13장)
 - [ ] `frontend/Dockerfile`, `nginx/nginx.conf`, `docker-compose.gpu.yml`
 - [ ] `README.md`, `.editorconfig`, `docs/` 정리
 
@@ -143,6 +145,9 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 | 학습 기록 | `STUDY_LOG.md` (git 제외, AI가 직접 써도 됨) | 파일별 용도와 이유를 남기기 위해 |
 | RAG 개발 장소 | 맥에서 chunking·적재·검색까지 만들고, 서버에서는 적재 스크립트를 다시 실행 | 서버로 넘어가는 것은 코드와 원본 문서. 벡터는 같은 임베딩 모델이면 재현됨 |
 | LLM·예측모델 전환 | `.env`의 `LLM_PROVIDER`(`mock`/`ollama`) + `LLM_MODEL`, `PREDICT_BACKEND`(`mock`/`tft`)로 구현을 고른다. true/false 스위치는 쓰지 않음 | 값 하나만 보면 무엇이 도는지 알 수 있고, 분기가 한 곳에만 생김. `mock`일 때는 torch 없이 실행됨 (아래 "LLM·예측모델 전환 구조") |
+| 화면 구성 | 이전 졸업 프로젝트(`rag-chatbot`)를 잇는다: 사이드바 + 채팅 + 시각화 탭 3개. 게시판은 넣지 않는다. 디자인만 새로 | 기능이 검증돼 있고, 달라지는 것은 모델과 실험 목적 |
+| 실험 기준 문서 | `RQ 취합 및 실험 설계안_26-09-04_TS (1).docx`. 요약과 구현 요구사항은 `DEV_PLAN.md` 13장 | KCI 논문의 실험 1~3을 이 서비스로 돌린다 |
+| 예측 범위 | 2023년까지의 과거 주. 통합 DB에서 최신 입력을 만드는 변환은 KCI 범위 밖 | 설계안이 예측 질문을 시험 구간(2023년)에서 뽑으라고 함 |
 | LLM (당분간) | Ollama (무료, 로컬 실행) | 비용 없이 시작. provider 구조라 나중에 외부 API를 값 하나로 추가 가능 |
 
 ### 팀 과업과의 대응
@@ -155,7 +160,7 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 
 과업 3의 "현재값 / 미래 예측값 / 관리문서 정보를 LLM이 구분해서 사용"은 프롬프트에 구획을 나눠 넣는 일이라 mock 값으로 맥에서 완성할 수 있다. 서버에서는 값의 출처만 바뀐다.
 
-### LLM·예측모델 전환 구조 (2026-10-13 결정, 아직 구현 전)
+### LLM·예측모델 전환 구조 (2026-10-13 결정. `PREDICT_BACKEND=mock`은 구현됨, `tft`와 `LLM_PROVIDER`는 구현 전)
 
 | 설정 | 값 | 맥 | 서버 |
 |---|---|---|---|
@@ -197,6 +202,40 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 - provider 4종(Gemini, Mistral, HuggingFace, Ollama) → 지금은 `mock`과 `ollama`만
 - 모듈 최상단의 `os.getenv` → `Settings` 사용
 
+### 참고 프로젝트 2: `~/Desktop/UOS/grad_proj/grad_proj1/rag-chatbot` (이전 졸업 프로젝트)
+
+화면과 기능의 원형이다. Vanilla JS + FastAPI + OpenAI + LangChain(PGVector) + TimeSeriesTransformer 1개. 구조 설명은 그 폴더의 `ARCHITECTURE.md`, `RAG.md`, `TRANSFORMER.md`.
+
+**이번에 달라지는 것**
+
+| | 이전 | 이번 |
+|---|---|---|
+| 예측모델 | TimeSeriesTransformer 1개, 과거 7주로 5종 변수 | 지점별 TFT 21개, 과거 2주로 남조류 세포수 분위수 3개 |
+| 목적 | 동작하는 챗봇 | 실험 1~3을 돌리는 평가 플랫폼 |
+| 프론트 | Vanilla JS (HTML 3개) | React + Vite + TypeScript |
+| LLM / RAG | OpenAI, LangChain | Ollama, 직접 구현 (pgvector) |
+
+**가져올 것**
+
+| 무엇 | 그쪽 위치 | 우리 쪽 쓰임 |
+|---|---|---|
+| 화면 구성 | `frontend/index.html`, `visualization.html` (탭: 녹조 예측 지도 / 시계열 차트 / 상세 플롯) | 디자인의 출발점. 스크린샷을 디자인 도구에 참고로 넣는다 |
+| 채팅 응답에 시각화 데이터를 싣는 형태 | `backend/app/schemas/chat.py`의 `VisualizationData` (`timeseries`, `map_points`, `plot_points`, `query_context`) | `/api/chat` 응답 설계. 예측은 분위수 범위를 더한다 |
+| 지도 재료 | `frontend/static/data/rivers.geojson`, `watershed.geojson` | 지도 배경 |
+| 지점 좌표 | `monitoring_stations` 테이블 (`backend/app/models/monitoring_station.py`, `db_dump/`, `scripts/load_stations_from_csv.py`) | 21개 지점 좌표를 여기서 찾을 수 있는지 확인. 없으면 연구실에 요청 |
+| 대화 기록 API의 형태 | `backend/app/api/history.py` (조회 / 추가 / 수정 / 삭제) | 사이드바의 대화 기록 |
+| 평가 재료 | `eval/rag_eval_questions.json`, `scripts/eval_rag_recall.py`, `scripts/export_chunks_for_eval.py` | pilot 질문과 검색 평가의 참고 |
+| 지도·차트 구현 참고 | `frontend/visualization.js` (Leaflet, Chart.js) | 라이브러리 선택은 따로 묻고 정한다 |
+
+**가져오지 않을 것**
+
+- 질문에서 키워드를 찾아 분기하는 방식 (`chat_service.py`의 `_detect_prediction_request` 등) → Case마다 동작이 달라질 수 있어 실험 통제와 맞지 않는다. DB 조회와 예측을 독립 모듈로 두고 같은 방식으로 부른다
+- 게시판 (`board.*`)
+- CORS 설정, `frontend/config.js`의 API 주소 → 우리는 같은 주소 구조
+- LangChain, OpenAI 호출
+- 그 저장소의 compose·설정 파일에 적힌 값(계정, 비밀번호 등). 새로 정한다
+- `>=`로만 적힌 패키지 버전
+
 ### 알아 둘 것
 
 - 맥의 `python3`는 anaconda 3.12.7이다. venv는 반드시 `python3.11`로 만든다.
@@ -211,15 +250,18 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 
 ### 다음 순서
 
-1. 서버 쪽 대기 항목 보내기: Docker 권한 요청, `pip show pykalman`, 모델 코드 저장소 반입 가능 여부
-2. 프론트 예측 화면: 지점 선택 → `/api/predict` 결과 표시 (분위수 범위, 단계 색)
-3. RAG 결정: 사용할 공식 문서, 임베딩 모델, Ollama 모델
-4. RAG 적재: `documents`/`chunks` 테이블(출처 정보 + 벡터), chunking·적재 스크립트
-5. RAG 검색 + `/api/chat` (스트리밍). `LLM_PROVIDER` 설정을 이때 넣는다. `chat_logs`에 검색 문서·응답 시간·provider·모델 열 추가
-6. 프론트 챗봇 화면
-7. Nginx + 프론트 Dockerfile로 맥에서 전체 구조 실행
-8. 기본 파일(README, .editorconfig), Prettier, pre-commit, Vitest
-9. `.claude/settings.json`의 `permissions.deny`로 `.env` 읽기 차단 (지침서 글 대신 도구로 강제)
+1. 서버·연구실 대기 항목 보내기: Docker 권한 요청, `pip show pykalman`, 모델 코드 저장소 반입 가능 여부, 지점 좌표와 한글 이름, 위험등급 기준
+2. 화면 디자인 (사용자, Stitch·Figma). 병행해서 스타일 방식(Tailwind 여부)과 지도·차트 라이브러리를 정한다 (새 패키지라 먼저 묻는다)
+3. 프론트 뼈대: 사이드바 + 채팅 + 시각화 탭. 시각화는 `/api/locations`, `/api/predict`(mock)로 먼저 연결
+4. RAG 결정: 사용할 공식 문서, 임베딩 모델, Ollama 모델과 버전
+5. RAG 적재: `documents`/`chunks` 테이블(출처 정보 + 문서 버전 메타데이터 + 벡터), chunking·적재 스크립트
+6. DB 조회 모듈 (기준일까지만 조회). 통합 DB를 PostgreSQL에 넣을지 여기서 정한다
+7. `/api/chat`: Case 전환(C1~C4), 구조화된 출력, 스트리밍. `LLM_PROVIDER` 설정을 이때 넣는다. `chat_logs`에 실험용 열 추가
+8. 프론트 채팅 화면을 `/api/chat`에 연결
+9. 실험 실행 도구 (일괄 실행, 근거 조작, 블라인드 내보내기)
+10. Nginx + 프론트 Dockerfile로 맥에서 전체 구조 실행
+11. 기본 파일(README, .editorconfig), Prettier, pre-commit, Vitest
+12. `.claude/settings.json`의 `permissions.deny`로 `.env` 읽기 차단 (지침서 글 대신 도구로 강제)
 
 ## 6. 연구실 서버 정보 (2026-10-08 확인)
 
@@ -250,7 +292,11 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 
 - 서버 Docker 권한, 컨테이너 GPU(NVIDIA Container Toolkit)
 - pykalman 버전
-- 통합 DB에서 최신 모델 입력을 만드는 변환을 할지 (하기 전까지 예측 화면은 2023년까지의 과거 주 조회)
+- 위험등급 기준: 모델의 0~4단계를 쓸지, 조류경보제 공식 기준을 따로 적용할지
+- C2·C3에 넣을 고정 management context를 어떻게 만들지
+- 지점 좌표와 한글 이름 (지도용)
+- 대화 기록 범위 (로그인 없이 브라우저별 구분을 제안함)
+- 스타일 방식(Tailwind 여부), 지도·차트 라이브러리
 - 통합 DB 6종을 PostgreSQL에 넣을지, CSV를 그대로 읽을지
 - 데이터 QA: JSCG 강수 컬럼 이름 등 (`DEV_PLAN.md` 5장)
 - 임베딩 모델, Ollama에서 쓸 모델 (LLM은 당분간 Ollama로 결정)
@@ -266,4 +312,4 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 | `TFT_TL_PLOT.py`, `TFT_train_each_location.py` | 예측모델 코드 사본 (git 제외) |
 | 서버 `LLM_RAG/algae_forecast_project_overview.html` | 데이터·모델·코드 인수인계서 (기준일 2026-09-04). 맥 사본은 `~/Downloads/`. 핵심은 `DEV_PLAN.md` 5장에 옮김 |
 | `#. RAG-녹조예측/` | 참고 논문, 미팅 자료(KCI 논문화 설계 보고서 등) |
-| `RQ 취합 및 실험 설계안_26-09-04_TS (1).docx` | 연구 질문·실험 설계 |
+| `RQ 취합 및 실험 설계안_26-09-04_TS (1).docx` | 연구 질문·실험 설계. **구현의 기준 문서.** 요약은 `DEV_PLAN.md` 13장 |
