@@ -118,7 +118,7 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 - [x] `chat_logs` 테이블 (`question`, `answer`, `created_at`) — 검색 문서·응답 시간 열은 RAG 단계에서 추가
 - [x] 예측 API mock: `GET /api/locations`(21개 지점), `POST /api/predict`(분위수 3개 + 단계). `PREDICT_BACKEND=mock`. 구조는 `app/ml/`(`locations.py`, `predictor.py`, `mock.py`) + `app/routers/predict.py`
 - [x] 첫 테스트: `backend/tests/` 17개 (health, 예측 주소, 단계 분류 경계값). `pytest.ini`, `conftest.py`
-- [ ] 화면 디자인 (사용자가 Stitch·Figma로 제작 중)
+- [x] 화면 디자인: Stitch로 4개 화면 제작, 넣을 것과 뺄 것 확정 (`DEV_PLAN.md` 13장 "화면별 확정 구성")
 - [ ] 프론트 뼈대: 사이드바(대화 기록) + 채팅 + 시각화 탭(지도 / 시계열 / 상세 플롯)
 - [ ] RAG: 문서 확정 → chunking·적재 스크립트 → 검색 → LLM 응답
 - [ ] DB 조회 모듈, Case 전환(C1~C4), 구조화된 출력, 실험 실행 도구 (`DEV_PLAN.md` 13장)
@@ -146,6 +146,8 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 | RAG 개발 장소 | 맥에서 chunking·적재·검색까지 만들고, 서버에서는 적재 스크립트를 다시 실행 | 서버로 넘어가는 것은 코드와 원본 문서. 벡터는 같은 임베딩 모델이면 재현됨 |
 | LLM·예측모델 전환 | `.env`의 `LLM_PROVIDER`(`mock`/`ollama`) + `LLM_MODEL`, `PREDICT_BACKEND`(`mock`/`tft`)로 구현을 고른다. true/false 스위치는 쓰지 않음 | 값 하나만 보면 무엇이 도는지 알 수 있고, 분기가 한 곳에만 생김. `mock`일 때는 torch 없이 실행됨 (아래 "LLM·예측모델 전환 구조") |
 | 화면 구성 | 이전 졸업 프로젝트(`rag-chatbot`)를 잇는다: 사이드바 + 채팅 + 시각화 탭 3개. 게시판은 넣지 않는다. 디자인만 새로 | 기능이 검증돼 있고, 달라지는 것은 모델과 실험 목적 |
+| 디자인 | Stitch 결과물(`~/Downloads/stitch_ai/`)을 참고로 React 부품을 다시 만든다. 코드는 붙여 넣지 않는다. 화면 속 수치·문구·기관명은 예시라 쓰지 않는다 | 차트·지도가 정적 그림이고, 우리 모델과 다른 내용(Eco-LSTM, 95% 신뢰구간, 여러 주 예측)이 섞여 있음 |
+| 스타일 | Tailwind CSS | Stitch 결과물이 Tailwind라 클래스를 거의 그대로 옮길 수 있음 |
 | 실험 기준 문서 | `RQ 취합 및 실험 설계안_26-09-04_TS (1).docx`. 요약과 구현 요구사항은 `DEV_PLAN.md` 13장 | KCI 논문의 실험 1~3을 이 서비스로 돌린다 |
 | 예측 범위 | 2023년까지의 과거 주. 통합 DB에서 최신 입력을 만드는 변환은 KCI 범위 밖 | 설계안이 예측 질문을 시험 구간(2023년)에서 뽑으라고 함 |
 | LLM (당분간) | Ollama (무료, 로컬 실행) | 비용 없이 시작. provider 구조라 나중에 외부 API를 값 하나로 추가 가능 |
@@ -251,8 +253,8 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 ### 다음 순서
 
 1. 서버·연구실 대기 항목 보내기: Docker 권한 요청, `pip show pykalman`, 모델 코드 저장소 반입 가능 여부, 지점 좌표와 한글 이름, 위험등급 기준
-2. 화면 디자인 (사용자, Stitch·Figma). 병행해서 스타일 방식(Tailwind 여부)과 지도·차트 라이브러리를 정한다 (새 패키지라 먼저 묻는다)
-3. 프론트 뼈대: 사이드바 + 채팅 + 시각화 탭. 시각화는 `/api/locations`, `/api/predict`(mock)로 먼저 연결
+2. 프론트 뼈대: Tailwind 설치와 디자인 토큰 → 공통 틀(사이드바, 상단 띠) → 채팅 화면(고정 예시 답변) → 시각화 탭. 시각화는 `/api/locations`, `/api/predict`(mock)로 먼저 연결
+3. 아이콘·차트·지도 라이브러리 결정 (각 화면을 만들 때 묻는다)
 4. RAG 결정: 사용할 공식 문서, 임베딩 모델, Ollama 모델과 버전
 5. RAG 적재: `documents`/`chunks` 테이블(출처 정보 + 문서 버전 메타데이터 + 벡터), chunking·적재 스크립트
 6. DB 조회 모듈 (기준일까지만 조회). 통합 DB를 PostgreSQL에 넣을지 여기서 정한다
@@ -296,7 +298,8 @@ httpx2==2.13.1                  # TestClient용. httpx는 Starlette에서 deprec
 - C2·C3에 넣을 고정 management context를 어떻게 만들지
 - 지점 좌표와 한글 이름 (지도용)
 - 대화 기록 범위 (로그인 없이 브라우저별 구분을 제안함)
-- 스타일 방식(Tailwind 여부), 지도·차트 라이브러리
+- 아이콘·지도·차트 라이브러리
+- 단계의 공식 명칭
 - 통합 DB 6종을 PostgreSQL에 넣을지, CSV를 그대로 읽을지
 - 데이터 QA: JSCG 강수 컬럼 이름 등 (`DEV_PLAN.md` 5장)
 - 임베딩 모델, Ollama에서 쓸 모델 (LLM은 당분간 Ollama로 결정)
