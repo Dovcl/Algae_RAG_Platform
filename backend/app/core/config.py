@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     predict_backend: Literal["mock", "tft"] = "mock"
     llm_provider: Literal["mock", "ollama"] = "mock"
 
+    # 맥: 컨테이너에서 호스트의 Ollama로. 서버에서는 Ollama 컨테이너 주소
+    ollama_base_url: str = "http://host.docker.internal:11434"
+    embed_model: str = "bge-m3"
+    # 검색할 컬렉션. 비어 있으면 문서 검색을 하지 않는다
+    rag_collection: str | None = None
+
     @property
     def database_url(self) -> URL:
         return URL.create(
