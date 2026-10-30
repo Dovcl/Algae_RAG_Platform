@@ -1,0 +1,40 @@
+{
+  "documents": [
+    {
+      "document_id": "DOC01",
+      "title": "2024년 조류(녹조)발생과 대응 연차보고서",
+      "publisher": "기후에너지환경부",
+      "edition": "2024년판 (2025년 12월 발행)",
+      "published_on": null,
+      "file": "data/docs/DOC01_2024_algae_annual_report_2025-12.pdf",
+      "sha256": "1d1f3f222ee58c2ebe05a55a68bbb0970fac01bfcfa0d7648ab94f0ee2bfa9ec",
+      "source_url": null,
+      "page_ranges": [{"pdf_start": 174, "pdf_end": 174, "printed_offset": 20}],
+      "strip_lines": ["^⦁?\\d+⦁?$"]
+    },
+    {
+      "document_id": "DOC02",
+      "title": "조류경보제 운영 매뉴얼(2025.8)",
+      "publisher": "국립환경과학원 한강통합물환경센터, 환경부 물환경정책국 물환경정책과",
+      "edition": "2025년 8월",
+      "published_on": null,
+      "file": "data/docs/DOC02_algae_alert_manual_2025-08.pdf",
+      "sha256": "fd1ccf1f60b9ab09ecf697c4f6c0e4766eb0feb33b035ae0a9145dc3f5dcb999",
+      "source_url": "https://www.water.or.kr/upload/board/2026/04/20260416110044_1.pdf",
+      "page_ranges": [{"pdf_start": 34, "pdf_end": 38, "printed_offset": 4}],
+      "strip_lines": ["^조류경보제 운영 매뉴얼$", "^Ⅲ\\. 조류경보제 운영$", "^\\d+$", "^[\\s\\u0307]+$"]
+    },
+    {
+      "document_id": "DOC03",
+      "title": "정수장 조류(藻類) 대응 가이드라인(2017.5)",
+      "publisher": "환경부, 국립환경과학원",
+      "edition": "2017년 5월",
+      "published_on": null,
+      "file": "data/docs/DOC03_water_treatment_algae_guideline_2017-05.pdf",
+      "sha256": "c5cb5484414906054d52e845894287a520fe982150428dde220901dda96fc74a",
+      "source_url": "https://m.korea.kr/expertWeb/resources/files/data/document_file/2017/%EC%A0%95%EC%88%98%EC%9E%A5%20%EC%A1%B0%EB%A5%98%20%EB%8C%80%EC%9D%91%20%EA%B0%80%EC%9D%B4%EB%93%9C%EB%9D%BC%EC%9D%B8%282017.05%29.pdf",
+      "page_ranges": [],
+      "strip_lines": []
+    }
+  ]
+}
