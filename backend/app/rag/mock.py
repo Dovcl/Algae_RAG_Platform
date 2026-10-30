@@ -48,14 +48,14 @@ class EvidenceItem:
 
 _EVIDENCE = [
     EvidenceItem(
-        id="DOC01-p14",
+        id="EX01-p14",
         document="(예시) 녹조 대응 지침 A",
         publisher="(예시) 발행기관",
         page=14,
         section="단계별 조치",
     ),
     EvidenceItem(
-        id="DOC02-p7",
+        id="EX02-p7",
         document="(예시) 취·정수장 운영 지침 B",
         publisher="(예시) 발행기관",
         page=7,
