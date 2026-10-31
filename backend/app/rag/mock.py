@@ -78,7 +78,11 @@ class MockAnswer:
 
 
 def find_location(question: str) -> Location | None:
-    """질문에 지점 코드가 들어 있으면 그 지점. 긴 코드부터 본다 (GJGRB가 GJGR보다 먼저)."""
+    """질문에 지점 이름이나 코드가 있으면 그 지점. 긴 것부터 본다 (강정고령보가 강정고령보다 먼저)."""
+    by_name = sorted(LOCATIONS.values(), key=lambda loc: len(loc.name), reverse=True)
+    for location in by_name:
+        if location.name in question:
+            return location
     upper = question.upper()
     for code in sorted(LOCATIONS, key=len, reverse=True):
         if code.upper() in upper:

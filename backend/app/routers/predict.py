@@ -21,6 +21,8 @@ class LocationOut(BaseModel):
     code: str
     river: str
     river_name: str
+    name: str
+    zone: str | None
 
 
 class PredictRequest(BaseModel):
@@ -75,7 +77,13 @@ def to_quantiles(result: Prediction) -> Quantiles:
 def list_locations() -> list[LocationOut]:
     """예측 모델이 있는 지점 목록."""
     return [
-        LocationOut(code=loc.code, river=loc.river, river_name=RIVER_NAMES[loc.river])
+        LocationOut(
+            code=loc.code,
+            river=loc.river,
+            river_name=RIVER_NAMES[loc.river],
+            name=loc.name,
+            zone=loc.zone,
+        )
         for loc in LOCATIONS.values()
     ]
 

@@ -105,7 +105,7 @@ def observed_section(
 ) -> str:
     if location is None or base is None:
         return "지점이나 기준일이 지정되지 않아 관측 자료가 없습니다."
-    lines = [f"지점 코드: {location.code}, 기준일: {base}, 주 단위 자료"]
+    lines = [f"지점: {location.name}, 기준일: {base}, 주 단위 자료"]
     if observed is None:
         lines.append("기준일 주의 유해남조류 세포수: 결측 또는 자료 없음")
     else:
@@ -122,6 +122,7 @@ def observed_section(
 
 
 def status_sentence(
+    location: Location | None,
     base: date | None,
     observed: float | None,
     forecast: Prediction | None,
@@ -129,9 +130,10 @@ def status_sentence(
 ) -> str:
     """세포수와 구간은 LLM이 틀리기 쉬워 코드가 쓴다. 구간은 상수원 기준이다."""
     parts = []
-    if base is not None and observed is not None:
+    if location is not None and base is not None and observed is not None:
         parts.append(
-            f"{base} 주의 유해남조류 세포수는 {round(to_cells(observed)):,} cells/mL입니다"
+            f"{location.name}의 {base} 주 유해남조류 세포수는 "
+            f"{round(to_cells(observed)):,} cells/mL입니다"
             f"(상수원 구간 기준 {STAGE_RANGES[classify_stage(observed)]})."
         )
     if forecast is not None and stage is not None:
@@ -197,6 +199,8 @@ def build_answer(
 ) -> RagAnswer:
     if location is not None and base is None:
         base = observations.weeks(location, None, None, 2)[0]
+    if base is not None:
+        base -= timedelta(days=base.weekday())  # 주 단위 자료는 월요일 날짜를 쓴다
 
     observed = forecast = stage = None
     if location is not None and base is not None:
@@ -235,6 +239,12 @@ def build_answer(
             f" (제공하지 않은 근거 번호를 인용해 제외함: {', '.join(unknown)})"
         )
 
+    if location is not None and location.zone is None:
+        limitations += (
+            f" {location.name}의 구간(상수원/친수활동)은 확인되지 않아 "
+            "세포수 구간은 상수원 기준으로 표시했습니다."
+        )
+
     # 화면의 출처 번호와 맞춘다. 쓰지 않은 근거 번호는 지운다
     text = output.answer.replace("\\n", "\n")
     for number, item in enumerate(used, start=1):
@@ -254,7 +264,7 @@ def build_answer(
         answer=" ".join(
             part
             for part in (
-                status_sentence(base, observed, forecast, stage),
+                status_sentence(location, base, observed, forecast, stage),
                 text,
             )
             if part

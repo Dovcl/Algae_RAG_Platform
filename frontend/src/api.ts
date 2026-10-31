@@ -3,6 +3,8 @@ export type LocationInfo = {
   code: string
   river: string
   river_name: string
+  name: string
+  zone: string | null
 }
 
 export type Quantiles = {
@@ -74,11 +76,19 @@ export type ChatResponse = {
   predict_backend: string
 }
 
-export async function postChat(question: string): Promise<ChatResponse> {
+export async function postChat(
+  question: string,
+  location: string,
+  baseDate: string,
+): Promise<ChatResponse> {
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({
+      question,
+      location: location || null,
+      base_date: baseDate || null,
+    }),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json() as Promise<ChatResponse>

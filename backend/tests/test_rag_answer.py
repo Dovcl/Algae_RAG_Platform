@@ -6,6 +6,7 @@ import pytest
 from app.ml.locations import LOCATIONS
 from app.ml.mock import MockObservations, MockPredictor
 from app.rag import answer as rag
+from app.rag.mock import find_location
 from app.rag.retrieve import Hit
 
 
@@ -116,3 +117,40 @@ def test_cut_off_answer_raises(stubbed):
 
     with pytest.raises(rag.LlmError):
         run()
+
+
+@pytest.mark.parametrize(
+    ("question", "code"),
+    [
+        ("칠서의 전망은?", "CS"),
+        ("강정고령보 상태", "GJGRB"),
+        ("강정고령 상태", "GJGR"),
+        ("cgb 지점", "CGB"),
+    ],
+)
+def test_find_location(question, code):
+    assert find_location(question).code == code
+
+
+def test_base_date_moves_to_monday(stubbed):
+    stubbed["output"] = {
+        "answer": "제공된 근거에 따라 정리한 충분히 긴 답변 문장입니다.",
+        "management_actions": [],
+        "evidence_ids": [],
+        "limitations": "",
+    }
+
+    assert run(LOCATIONS["CS"], date(2023, 6, 15)).base_date == date(2023, 6, 12)
+
+
+def test_unknown_zone_is_disclosed(stubbed):
+    stubbed["output"] = {
+        "answer": "제공된 근거에 따라 정리한 충분히 긴 답변 문장입니다.",
+        "management_actions": [],
+        "evidence_ids": [],
+        "limitations": "",
+    }
+
+    result = run(LOCATIONS["CGB"], date(2023, 6, 12))
+
+    assert "구간(상수원/친수활동)은 확인되지 않아" in result.limitations

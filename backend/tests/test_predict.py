@@ -9,7 +9,13 @@ def test_locations(client):
     assert response.status_code == 200
     locations = response.json()
     assert len(locations) == 21
-    assert {"code": "CGB", "river": "NAK", "river_name": "낙동강"} in locations
+    assert {
+        "code": "CS",
+        "river": "NAK",
+        "river_name": "낙동강",
+        "name": "칠서",
+        "zone": "상수원",
+    } in locations
 
 
 def test_predict(client):

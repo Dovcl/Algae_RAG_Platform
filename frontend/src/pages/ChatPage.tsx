@@ -1,21 +1,29 @@
 import { ArrowUp } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router'
-import { postChat } from '../api.ts'
+import { fetchLocations, postChat } from '../api.ts'
+import LocationSelect from '../components/LocationSelect.tsx'
 import { newTurnId, type ChatContext, type Turn } from '../lib/chat.ts'
+import { useFetch } from '../lib/useFetch.ts'
 import Answer from './chat/Answer.tsx'
 
-// mock은 질문에서 지점 코드와 날짜만 읽는다. 그래서 예시에 둘 다 넣었다.
 const SUGGESTIONS = [
-  'HCB 지점의 2023-08-07 기준 다음 주 전망과 대응을 알려줘',
-  'CGB 지점의 2023-07-03 기준 녹조 전망은?',
-  'GJB 지점의 현재 남조류 상태를 알려줘',
-  'SCB 지점의 2023-09-04 기준 필요한 관리 조치는?',
+  '칠서의 2023-06-12 기준 다음 주 전망과 대응을 알려줘',
+  '상수원 구간 경계 단계 발령 기준은?',
+  '경계 단계에서 취수장과 정수장 관리자는 무엇을 해야 해?',
+  '친수활동 구간 경계 단계에서 낚시는 어떻게 관리해?',
 ]
+
+// 저장 예측이 있는 기준일 범위 (대상 주 2023-01-16 ~ 12-25)
+const FIRST_BASE_DATE = '2023-01-09'
+const LAST_BASE_DATE = '2023-12-18'
 
 function ChatPage() {
   const { turns, setTurns } = useOutletContext<ChatContext>()
   const [draft, setDraft] = useState('')
+  const [location, setLocation] = useState('')
+  const [baseDate, setBaseDate] = useState('')
+  const locations = useFetch('locations', fetchLocations)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const pending = turns.some((turn) => turn.result.status === 'loading')
@@ -35,7 +43,7 @@ function ChatPage() {
     const finish = (result: Turn['result']) =>
       setTurns((prev) => prev.map((turn) => (turn.id === id ? { ...turn, result } : turn)))
 
-    postChat(text)
+    postChat(text, location, baseDate)
       .then((data) => finish({ status: 'ok', data }))
       .catch((e: unknown) =>
         finish({ status: 'error', error: e instanceof Error ? e.message : String(e) }),
@@ -98,8 +106,26 @@ function ChatPage() {
             ))}
           </div>
 
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <LocationSelect
+              locations={locations.status === 'ok' ? locations.data : []}
+              value={location}
+              onChange={setLocation}
+              emptyLabel="지점 선택 안 함"
+            />
+            <input
+              aria-label="기준일"
+              type="date"
+              value={baseDate}
+              min={FIRST_BASE_DATE}
+              max={LAST_BASE_DATE}
+              onChange={(e) => setBaseDate(e.target.value)}
+              className="h-9 rounded border border-slate-300 bg-white px-2 text-sm"
+            />
+          </div>
+
           <form
-            className="mt-3 flex gap-2"
+            className="mt-2 flex gap-2"
             onSubmit={(e) => {
               e.preventDefault()
               send(draft)
@@ -109,7 +135,7 @@ function ChatPage() {
               aria-label="질문"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="예: HCB 지점의 2023-08-07 기준 전망은?"
+              placeholder="예: 칠서의 2023-06-12 기준 전망은?"
               maxLength={2000}
               className="h-10 min-w-0 flex-1 rounded border border-slate-300 px-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
