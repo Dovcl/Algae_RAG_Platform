@@ -44,8 +44,13 @@ function EvidenceCards({ data }: EvidenceCardsProps) {
               <span className="ml-1 text-xs font-normal text-slate-500">cells/mL</span>
             </p>
             <p className="mt-1 text-xs text-slate-600">
-              범위 {formatCells(forecast.cells_per_ml.q20)} ~{' '}
-              {formatCells(forecast.cells_per_ml.q80)} · {forecast.target_date} 예측
+              {forecast.cells_per_ml.q20 !== null && forecast.cells_per_ml.q80 !== null && (
+                <>
+                  범위 {formatCells(forecast.cells_per_ml.q20)} ~{' '}
+                  {formatCells(forecast.cells_per_ml.q80)} ·{' '}
+                </>
+              )}
+              {forecast.target_date} 예측
             </p>
           </>
         ) : (

@@ -9,19 +9,21 @@ from app.ml.locations import Location
 
 @dataclass(frozen=True)
 class Prediction:
-    """모델 출력 그대로의 값. 분위수는 log10(1 + cells/mL)."""
+    """모델 출력 그대로의 값. 분위수는 log10(1 + cells/mL). 저장 예측에는 q20, q80이 없다."""
 
     target_date: date
     input_until: date
-    q20: float
+    q20: float | None
     q50: float
-    q80: float
+    q80: float | None
 
 
 class Predictor(Protocol):
     name: str
 
-    def predict(self, location: Location, target_date: date | None) -> Prediction: ...
+    def predict(
+        self, location: Location, target_date: date | None
+    ) -> Prediction | None: ...
 
 
 def classify_stage(log_value: float) -> int:
@@ -48,4 +50,8 @@ def get_predictor() -> Predictor:
         from app.ml.mock import MockPredictor
 
         return MockPredictor()
+    if settings.predict_backend == "precomputed":
+        from app.ml.lab_data import PrecomputedPredictor
+
+        return PrecomputedPredictor(settings.lab_data_dir)
     raise NotImplementedError("PREDICT_BACKEND=tft는 아직 구현 전입니다.")

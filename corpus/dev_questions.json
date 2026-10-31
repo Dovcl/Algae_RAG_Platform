@@ -1,0 +1,224 @@
+[
+ {
+  "question": "상수원 구간의 경계 단계 발령 기준은?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 34
+   },
+   {
+    "document_id": "DOC01",
+    "pdf_page": 166
+   }
+  ]
+ },
+ {
+  "question": "친수활동 구간에서 조류경보 해제 기준은 몇 세포/mL 미만인가?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 34
+   },
+   {
+    "document_id": "DOC01",
+    "pdf_page": 166
+   }
+  ]
+ },
+ {
+  "question": "남조류 세포수가 한 번만 기준을 넘으면 경보를 발령하는가?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 34
+   },
+   {
+    "document_id": "DOC01",
+    "pdf_page": 166
+   }
+  ]
+ },
+ {
+  "question": "남조류 세포수는 어떤 속의 합으로 계산하는가?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 34
+   },
+   {
+    "document_id": "DOC02",
+    "pdf_page": 35
+   },
+   {
+    "document_id": "DOC01",
+    "pdf_page": 166
+   }
+  ]
+ },
+ {
+  "question": "경계 단계에서 취수장과 정수장 관리자가 해야 할 일은?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 37
+   },
+   {
+    "document_id": "DOC01",
+    "pdf_page": 167
+   }
+  ]
+ },
+ {
+  "question": "조류대발생 때 수면관리자는 무엇을 하나?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 39
+   },
+   {
+    "document_id": "DOC01",
+    "pdf_page": 167
+   }
+  ]
+ },
+ {
+  "question": "댐과 보의 방류량 조정은 어느 기관이 언제 하는가?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 38
+   },
+   {
+    "document_id": "DOC02",
+    "pdf_page": 39
+   },
+   {
+    "document_id": "DOC01",
+    "pdf_page": 168
+   }
+  ]
+ },
+ {
+  "question": "관심 단계의 모니터링 주기와 분석 항목은?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 36
+   },
+   {
+    "document_id": "DOC01",
+    "pdf_page": 167
+   }
+  ]
+ },
+ {
+  "question": "친수활동 구간 경계 단계에서 수상레저 활동은 어떻게 관리하나?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 41
+   },
+   {
+    "document_id": "DOC01",
+    "pdf_page": 168
+   }
+  ]
+ },
+ {
+  "question": "조류경보 발령 권한은 누구에게 있나?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 35
+   }
+  ]
+ },
+ {
+  "question": "하천에서 상수원 구간 시료는 어떤 수심에서 채취하나?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 47
+   },
+   {
+    "document_id": "DOC02",
+    "pdf_page": 48
+   },
+   {
+    "document_id": "DOC02",
+    "pdf_page": 45
+   }
+  ]
+ },
+ {
+  "question": "호소에서 채수위치는 어떻게 선정하나?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 43
+   }
+  ]
+ },
+ {
+  "question": "조류 예측 1단계와 2단계의 세포수 구간은?",
+  "expected": [
+   {
+    "document_id": "DOC01",
+    "pdf_page": 174
+   }
+  ]
+ },
+ {
+  "question": "조류예측 정보는 얼마나 자주 발표되나?",
+  "expected": [
+   {
+    "document_id": "DOC01",
+    "pdf_page": 174
+   }
+  ]
+ },
+ {
+  "question": "정수장에서 지오스민이 20 ng/L를 넘으면 어떻게 대응하나?",
+  "expected": [
+   {
+    "document_id": "DOC03",
+    "pdf_page": 5
+   },
+   {
+    "document_id": "DOC03",
+    "pdf_page": 6
+   },
+   {
+    "document_id": "DOC01",
+    "pdf_page": 183
+   }
+  ]
+ },
+ {
+  "question": "남조류 대량 발생 시 분말활성탄 초기 투입량은?",
+  "expected": [
+   {
+    "document_id": "DOC03",
+    "pdf_page": 6
+   }
+  ]
+ },
+ {
+  "question": "정수 처리 후에도 마이크로시스틴이 1 ug/L를 넘으면 어떻게 하나?",
+  "expected": [
+   {
+    "document_id": "DOC01",
+    "pdf_page": 183
+   }
+  ]
+ },
+ {
+  "question": "입상활성탄과 오존의 2-MIB 제거효율은?",
+  "expected": [
+   {
+    "document_id": "DOC03",
+    "pdf_page": 6
+   }
+  ]
+ }
+]

@@ -6,9 +6,9 @@ export type LocationInfo = {
 }
 
 export type Quantiles = {
-  q20: number
+  q20: number | null
   q50: number
-  q80: number
+  q80: number | null
 }
 
 export type TimeseriesPoint = {

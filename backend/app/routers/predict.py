@@ -29,9 +29,9 @@ class PredictRequest(BaseModel):
 
 
 class Quantiles(BaseModel):
-    q20: float
+    q20: float | None
     q50: float
-    q80: float
+    q80: float | None
 
 
 class PredictResponse(BaseModel):
@@ -65,9 +65,9 @@ def _find_location(code: str) -> Location:
 
 def to_quantiles(result: Prediction) -> Quantiles:
     return Quantiles(
-        q20=round(to_cells(result.q20)),
+        q20=None if result.q20 is None else round(to_cells(result.q20)),
         q50=round(to_cells(result.q50)),
-        q80=round(to_cells(result.q80)),
+        q80=None if result.q80 is None else round(to_cells(result.q80)),
     )
 
 
@@ -88,6 +88,8 @@ def predict(
     """지점의 남조류 세포수를 예측한다. target_date를 생략하면 자료의 마지막 주."""
     location = _find_location(request.location)
     result = predictor.predict(location, request.target_date)
+    if result is None:
+        raise HTTPException(status_code=404, detail="해당 주의 예측값이 없습니다.")
 
     return PredictResponse(
         location=location.code,
@@ -120,6 +122,8 @@ def timeseries(
     for week in observations.weeks(found, start, end, weeks):
         observed = observations.cyanocell(found, week)
         result = predictor.predict(found, week)
+        if result is None:
+            continue  # 저장 예측은 2023-01-16부터라 그 전 주는 뺀다
         points.append(
             TimeseriesPoint(
                 date=week,

@@ -63,3 +63,6 @@ class MockObservations:
             return None
         rng = random.Random(f"obs-{location.code}-{week.isoformat()}")
         return max(_seasonal_log(location, week) + rng.uniform(-0.3, 0.3), 0.0)
+
+    def recent(self, location: Location, base: date, count: int) -> list[dict]:
+        return []

@@ -1,0 +1,955 @@
+{
+ "note": "파서 결과를 보기 전에 원문 이미지와 글자 층으로 작성한 평가 기준. Claude 초안이며 사람 확정 전이다.",
+ "bundles": {
+  "A": {
+   "document_id": "DOC02",
+   "pdf_pages": [
+    34,
+    35
+   ]
+  },
+  "B": {
+   "document_id": "DOC02",
+   "pdf_pages": [
+    37,
+    38
+   ]
+  },
+  "C": {
+   "document_id": "DOC01",
+   "pdf_pages": [
+    166
+   ]
+  },
+  "D": {
+   "document_id": "DOC01",
+   "pdf_pages": [
+    167,
+    168
+   ]
+  },
+  "E": {
+   "document_id": "DOC01",
+   "pdf_pages": [
+    174
+   ]
+  },
+  "F": {
+   "document_id": "DOC01",
+   "pdf_pages": [
+    183
+   ]
+  },
+  "G": {
+   "document_id": "DOC03",
+   "pdf_pages": [
+    5,
+    6
+   ]
+  }
+ },
+ "facts": [
+  {
+   "id": "A01",
+   "bundle": "A",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "상수원 관심: 2회 연속 1,000 이상 10,000 미만",
+   "terms": [
+    "상수원",
+    "관심",
+    "1,000세포/mL이상10,000세포/mL미만"
+   ]
+  },
+  {
+   "id": "A02",
+   "bundle": "A",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "상수원 경계: 2회 연속 10,000 이상 1,000,000 미만",
+   "terms": [
+    "상수원",
+    "경계",
+    "10,000세포/mL이상1,000,000세포/mL미만"
+   ]
+  },
+  {
+   "id": "A03",
+   "bundle": "A",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "상수원 조류대발생: 2회 연속 1,000,000 이상",
+   "terms": [
+    "상수원",
+    "대발생",
+    "1,000,000세포/mL이상"
+   ]
+  },
+  {
+   "id": "A04",
+   "bundle": "A",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "상수원 해제: 2회 연속 1,000 미만",
+   "terms": [
+    "상수원",
+    "해제",
+    "1,000세포/mL미만"
+   ]
+  },
+  {
+   "id": "A05",
+   "bundle": "A",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "친수활동 관심: 2회 연속 20,000 이상 100,000 미만",
+   "terms": [
+    "친수",
+    "관심",
+    "20,000세포/mL이상100,000세포/mL미만"
+   ]
+  },
+  {
+   "id": "A06",
+   "bundle": "A",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "친수활동 경계: 2회 연속 100,000 이상",
+   "terms": [
+    "친수",
+    "경계",
+    "100,000세포/mL이상"
+   ]
+  },
+  {
+   "id": "A07",
+   "bundle": "A",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "친수활동 해제: 2회 연속 20,000 미만",
+   "terms": [
+    "친수",
+    "해제",
+    "20,000세포/mL미만"
+   ]
+  },
+  {
+   "id": "A08",
+   "bundle": "A",
+   "scope": "unit",
+   "kind": "condition",
+   "fact": "비고: 강우 예보 등을 고려해 기준에 도달해도 발령·해제하지 않을 수 있음",
+   "terms": [
+    "강우예보",
+    "발령해제하지않을수있다"
+   ]
+  },
+  {
+   "id": "A09",
+   "bundle": "A",
+   "scope": "bundle",
+   "kind": "footnote",
+   "fact": "남조류 세포수는 4개 속 세포수의 합",
+   "terms": [
+    "Microcystis",
+    "Anabaena",
+    "Aphanizomenon",
+    "Oscillatoria",
+    "세포수의합"
+   ]
+  },
+  {
+   "id": "A10",
+   "bundle": "A",
+   "scope": "bundle",
+   "kind": "condition",
+   "fact": "발령일자에 해제일은 포함하지 않음",
+   "terms": [
+    "발령일자에해제일은포함하지않는다"
+   ]
+  },
+  {
+   "id": "A11",
+   "bundle": "A",
+   "scope": "bundle",
+   "kind": "relation",
+   "fact": "환경부 관리 호소의 발령·해제는 유역(지방)환경청장",
+   "terms": [
+    "환경부관리대상호소",
+    "유역(지방)환경청장"
+   ]
+  },
+  {
+   "id": "A12",
+   "bundle": "A",
+   "scope": "bundle",
+   "kind": "relation",
+   "fact": "시·도지사 관리 호소의 발령·해제는 시·도지사",
+   "terms": [
+    "시도지사관리호소",
+    "시도지사"
+   ]
+  },
+  {
+   "id": "A13",
+   "bundle": "A",
+   "scope": "bundle",
+   "kind": "count",
+   "fact": "평상시 모니터링은 주 1회",
+   "terms": [
+    "평상시에는모니터링을주1회"
+   ]
+  },
+  {
+   "id": "B01",
+   "bundle": "B",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "경계: 4대강 물환경연구소장이 주 2회 이상 시료 채취·분석",
+   "terms": [
+    "4대강물환경연구소장",
+    "주2회이상시료채취"
+   ]
+  },
+  {
+   "id": "B02",
+   "bundle": "B",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "경계 분석 항목: 남조류 세포수, 클로로필 a, 냄새물질, 독소",
+   "terms": [
+    "주2회이상",
+    "남조류세포수",
+    "클로로필a",
+    "냄새물질",
+    "독소"
+   ]
+  },
+  {
+   "id": "B03",
+   "bundle": "B",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "경계: 수면관리자가 차단막 설치 등 조류 제거",
+   "terms": [
+    "수면관리자",
+    "차단막설치"
+   ]
+  },
+  {
+   "id": "B04",
+   "bundle": "B",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "경계: 취·정수장 관리자가 조류증식 수심 이하로 취수구 이동",
+   "terms": [
+    "취수장정수장관리자",
+    "조류증식수심이하로취수구이동"
+   ]
+  },
+  {
+   "id": "B05",
+   "bundle": "B",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "경계: 취·정수장 관리자가 활성탄·오존 처리 강화",
+   "terms": [
+    "취수장정수장관리자",
+    "활성탄처리",
+    "오존처리"
+   ]
+  },
+  {
+   "id": "B06",
+   "bundle": "B",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "경계: 취·정수장 관리자가 정수의 독소분석",
+   "terms": [
+    "취수장정수장관리자",
+    "정수의독소분석"
+   ]
+  },
+  {
+   "id": "B07",
+   "bundle": "B",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "경계: 유역·지방 환경청장이 친수활동 등 자제 권고",
+   "terms": [
+    "유역지방환경청장",
+    "자제권고"
+   ]
+  },
+  {
+   "id": "B08",
+   "bundle": "B",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "경계: 홍수통제소장, 수공사장이 방류량 산정",
+   "terms": [
+    "홍수통제소장",
+    "한국수자원공사사장",
+    "방류량산정"
+   ]
+  },
+  {
+   "id": "B09",
+   "bundle": "B",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "경계: 환경공단이 합동 점검 지원",
+   "terms": [
+    "한국환경공단이사장",
+    "합동점검"
+   ]
+  },
+  {
+   "id": "B10",
+   "bundle": "B",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "경계: 환경공단이 수질자동측정자료 모니터링 강화",
+   "terms": [
+    "한국환경공단이사장",
+    "수질자동측정자료모니터링강화"
+   ]
+  },
+  {
+   "id": "B11",
+   "bundle": "B",
+   "scope": "bundle",
+   "kind": "footnote",
+   "fact": "괄호 기관은 시·도지사가 발령하는 경우의 관계기관",
+   "terms": [
+    "관계기관란의괄호는",
+    "시도지사가조류경보를발령하는경우"
+   ]
+  },
+  {
+   "id": "B12",
+   "bundle": "B",
+   "scope": "bundle",
+   "kind": "condition",
+   "fact": "경계는 연속 2번 이상 해당 시 발령",
+   "terms": [
+    "연속하여2번이상조류‘경계’"
+   ]
+  },
+  {
+   "id": "B13",
+   "bundle": "B",
+   "scope": "bundle",
+   "kind": "relation",
+   "fact": "대발생: 위락행위와 어획, 방목 행위 금지",
+   "terms": [
+    "방목등의행위를금지"
+   ]
+  },
+  {
+   "id": "B14",
+   "bundle": "B",
+   "scope": "bundle",
+   "kind": "relation",
+   "fact": "대발생: 홍수통제소·수공이 댐, 보 방류량 조정",
+   "terms": [
+    "댐,보방류량을조정"
+   ]
+  },
+  {
+   "id": "C01",
+   "bundle": "C",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "상수원 관심 기준",
+   "terms": [
+    "상수원",
+    "관심",
+    "1,000세포/mL이상10,000세포/mL미만"
+   ]
+  },
+  {
+   "id": "C02",
+   "bundle": "C",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "상수원 경계 기준",
+   "terms": [
+    "상수원",
+    "경계",
+    "10,000세포/mL이상1,000,000세포/mL미만"
+   ]
+  },
+  {
+   "id": "C03",
+   "bundle": "C",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "상수원 대발생 기준",
+   "terms": [
+    "상수원",
+    "대발생",
+    "1,000,000세포/mL이상"
+   ]
+  },
+  {
+   "id": "C04",
+   "bundle": "C",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "상수원 해제 기준",
+   "terms": [
+    "상수원",
+    "해제",
+    "1,000세포/mL미만"
+   ]
+  },
+  {
+   "id": "C05",
+   "bundle": "C",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "친수 관심 기준",
+   "terms": [
+    "친수",
+    "관심",
+    "20,000세포/mL이상100,000세포/mL미만"
+   ]
+  },
+  {
+   "id": "C06",
+   "bundle": "C",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "친수 경계 기준",
+   "terms": [
+    "친수",
+    "경계",
+    "100,000세포/mL이상"
+   ]
+  },
+  {
+   "id": "C07",
+   "bundle": "C",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "친수 해제 기준",
+   "terms": [
+    "친수",
+    "해제",
+    "20,000세포/mL미만"
+   ]
+  },
+  {
+   "id": "C08",
+   "bundle": "C",
+   "scope": "bundle",
+   "kind": "condition",
+   "fact": "2회 연속으로 기준 초과 시 발령",
+   "terms": [
+    "2회연속으로유해남조류세포수가아래기준을초과할때발령"
+   ]
+  },
+  {
+   "id": "C09",
+   "bundle": "C",
+   "scope": "bundle",
+   "kind": "footnote",
+   "fact": "유해남조류 4개 속의 합",
+   "terms": [
+    "Microcystis",
+    "Anabaena",
+    "Oscillatoria",
+    "세포수의합"
+   ]
+  },
+  {
+   "id": "D01",
+   "bundle": "D",
+   "scope": "unit",
+   "kind": "count",
+   "fact": "상수원 관심: 주 1회 이상, 세포수와 클로로필-a",
+   "terms": [
+    "관심",
+    "주1회이상시료채취",
+    "남조류세포수",
+    "클로로필-a"
+   ]
+  },
+  {
+   "id": "D02",
+   "bundle": "D",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "상수원 관심: 홍수통제소·수공이 댐, 보 여유량 확인·통보",
+   "terms": [
+    "관심",
+    "한국수자원공사사장",
+    "여유량확인"
+   ]
+  },
+  {
+   "id": "D03",
+   "bundle": "D",
+   "scope": "unit",
+   "kind": "count",
+   "fact": "상수원 경계: 주 2회 이상, 냄새물질과 독소 추가",
+   "terms": [
+    "경계",
+    "주2회이상시료채취",
+    "냄새물질",
+    "독소"
+   ]
+  },
+  {
+   "id": "D04",
+   "bundle": "D",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "상수원 경계: 취·정수장이 취수구 이동과 정수 독소분석",
+   "terms": [
+    "경계",
+    "취수장정수장관리자",
+    "취수구이동",
+    "정수의독소분석"
+   ]
+  },
+  {
+   "id": "D05",
+   "bundle": "D",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "상수원 경계: 방류량 산정",
+   "terms": [
+    "경계",
+    "한국수자원공사사장",
+    "방류량산정"
+   ]
+  },
+  {
+   "id": "D06",
+   "bundle": "D",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "대발생: 수면관리자가 황토 살포, 조류 제거선",
+   "terms": [
+    "대발생",
+    "수면관리자",
+    "황토",
+    "조류제거선"
+   ]
+  },
+  {
+   "id": "D07",
+   "bundle": "D",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "대발생: 친수활동, 어획, 방목 등 금지",
+   "terms": [
+    "유역지방환경청장",
+    "조류대발생경보",
+    "금지"
+   ]
+  },
+  {
+   "id": "D08",
+   "bundle": "D",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "대발생: 댐, 보 방류량 조정",
+   "terms": [
+    "한국수자원공사사장",
+    "방류량조정"
+   ]
+  },
+  {
+   "id": "D09",
+   "bundle": "D",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "해제: 각종 경보 해제와 대중매체 홍보",
+   "terms": [
+    "해제",
+    "각종경보해제"
+   ]
+  },
+  {
+   "id": "D10",
+   "bundle": "D",
+   "scope": "unit",
+   "kind": "count",
+   "fact": "친수 관심: 주 1회 이상, 냄새물질 포함",
+   "terms": [
+    "관심",
+    "주1회이상시료채취",
+    "냄새물질"
+   ]
+  },
+  {
+   "id": "D11",
+   "bundle": "D",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "친수 관심: 친수활동 자제 권고",
+   "terms": [
+    "관심경보발령",
+    "자제권고"
+   ]
+  },
+  {
+   "id": "D12",
+   "bundle": "D",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "친수 경계: 친수활동 금지",
+   "terms": [
+    "경계경보발령",
+    "금지"
+   ]
+  },
+  {
+   "id": "D13",
+   "bundle": "D",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "친수: 필요한 경우 조류제거물질 살포",
+   "terms": [
+    "필요한경우조류제거물질살포"
+   ]
+  },
+  {
+   "id": "E01",
+   "bundle": "E",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "0단계: 상수원 1,000 미만, 친수 20,000 미만",
+   "terms": [
+    "0단계",
+    "1,000세포/mL미만",
+    "20,000세포/mL미만"
+   ]
+  },
+  {
+   "id": "E02",
+   "bundle": "E",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "1단계: 상수원 1,000~10,000, 친수 20,000~100,000",
+   "terms": [
+    "1단계",
+    "1,000~10,000세포/mL미만",
+    "20,000~100,000세포/mL미만"
+   ]
+  },
+  {
+   "id": "E03",
+   "bundle": "E",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "2단계: 상수원 10,000~100,000, 친수 100,000 이상",
+   "terms": [
+    "2단계",
+    "10,000~100,000세포/mL미만",
+    "100,000세포/mL이상"
+   ]
+  },
+  {
+   "id": "E04",
+   "bundle": "E",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "3단계: 상수원 100,000~1,000,000",
+   "terms": [
+    "3단계",
+    "100,000~1,000,000세포/mL미만"
+   ]
+  },
+  {
+   "id": "E05",
+   "bundle": "E",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "4단계: 상수원 1,000,000 이상",
+   "terms": [
+    "4단계",
+    "1,000,000세포/mL이상"
+   ]
+  },
+  {
+   "id": "E06",
+   "bundle": "E",
+   "scope": "bundle",
+   "kind": "footnote",
+   "fact": "* 표시는 조류경보제 경보발령 기준",
+   "terms": [
+    "조류경보제경보발령기준"
+   ]
+  },
+  {
+   "id": "E07",
+   "bundle": "E",
+   "scope": "bundle",
+   "kind": "condition",
+   "fact": "예측치가 경계 기준을 하루라도 초과하면 매 근무일 발표",
+   "terms": [
+    "상수원10,000세포/mL",
+    "친수활동100,000세포/mL",
+    "매근무일마다발표"
+   ]
+  },
+  {
+   "id": "E08",
+   "bundle": "E",
+   "scope": "bundle",
+   "kind": "count",
+   "fact": "주 2회(월요일과 목요일) 17시 발표",
+   "terms": [
+    "주2회(월요일과목요일)17시"
+   ]
+  },
+  {
+   "id": "E09",
+   "bundle": "E",
+   "scope": "bundle",
+   "kind": "count",
+   "fact": "향후 7일간 예측 정보 제공",
+   "terms": [
+    "향후7일간"
+   ]
+  },
+  {
+   "id": "F01",
+   "bundle": "F",
+   "scope": "bundle",
+   "kind": "threshold",
+   "fact": "징후: 원수 지오스민, 2-MIB ≥ 20 ng/L",
+   "terms": [
+    "2-MIB≥20ng/L"
+   ]
+  },
+  {
+   "id": "F02",
+   "bundle": "F",
+   "scope": "bundle",
+   "kind": "threshold",
+   "fact": "징후: 독소 ≥ 1 ug/L",
+   "terms": [
+    "독소≥1ug/L"
+   ]
+  },
+  {
+   "id": "F03",
+   "bundle": "F",
+   "scope": "bundle",
+   "kind": "threshold",
+   "fact": "침전 pH > 7.5 시 pH 조정",
+   "terms": [
+    "침전pH>7.5시pH조정"
+   ]
+  },
+  {
+   "id": "F04",
+   "bundle": "F",
+   "scope": "bundle",
+   "kind": "threshold",
+   "fact": "정수 2-MIB ≤ 20 ng/L 판정",
+   "terms": [
+    "정수지오스민",
+    "2-MIB≤20ng/L"
+   ]
+  },
+  {
+   "id": "F05",
+   "bundle": "F",
+   "scope": "bundle",
+   "kind": "threshold",
+   "fact": "정수 마이크로시스틴 ≤ 1 ug/L 판정",
+   "terms": [
+    "마이크로시스틴≤1ug/L"
+   ]
+  },
+  {
+   "id": "F06",
+   "bundle": "F",
+   "scope": "bundle",
+   "kind": "relation",
+   "fact": "공정별 조치: 선택 취수",
+   "terms": [
+    "선택취수"
+   ]
+  },
+  {
+   "id": "F07",
+   "bundle": "F",
+   "scope": "bundle",
+   "kind": "relation",
+   "fact": "공정별 조치: 침전지슬러지 회수주기 단축",
+   "terms": [
+    "침전지슬러지회수주기단축"
+   ]
+  },
+  {
+   "id": "F08",
+   "bundle": "F",
+   "scope": "bundle",
+   "kind": "relation",
+   "fact": "중염소 전환 시 암모니아성 질소, 철, 망간 유입량 고려",
+   "terms": [
+    "중염소전환",
+    "암모니아성질소"
+   ]
+  },
+  {
+   "id": "F09",
+   "bundle": "F",
+   "scope": "manual",
+   "kind": "relation",
+   "fact": "분기: 징후 No → 정상 운영",
+   "terms": [
+    "정상운영"
+   ]
+  },
+  {
+   "id": "F10",
+   "bundle": "F",
+   "scope": "manual",
+   "kind": "relation",
+   "fact": "분기: 정수 판정 No → 주민공지(2급상황), 그리고 공정별 조치로 복귀",
+   "terms": [
+    "주민공지(2급상황)"
+   ]
+  },
+  {
+   "id": "F11",
+   "bundle": "F",
+   "scope": "manual",
+   "kind": "relation",
+   "fact": "분기: 정수 판정 Yes → 수질 및 수처리 공정 모니터링",
+   "terms": [
+    "수질및수처리공정모니터링"
+   ]
+  },
+  {
+   "id": "G01",
+   "bundle": "G",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "평상시: 원수 지오스민, 2-MIB < 20 ng/L",
+   "terms": [
+    "평상시",
+    "2-MIB<20ng/L"
+   ]
+  },
+  {
+   "id": "G02",
+   "bundle": "G",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "평상시: 마이크로시스틴-LR < 1 ug/L",
+   "terms": [
+    "평상시",
+    "마이크로시스틴-LR<1ug/L"
+   ]
+  },
+  {
+   "id": "G03",
+   "bundle": "G",
+   "scope": "unit",
+   "kind": "threshold",
+   "fact": "대량 발생: 2-MIB ≥ 20 ng/L",
+   "terms": [
+    "대량발생",
+    "2-MIB≥20ng/L"
+   ]
+  },
+  {
+   "id": "G04",
+   "bundle": "G",
+   "scope": "unit",
+   "kind": "condition",
+   "fact": "대량 발생: 마이크로시스틴-LR ≥ 1 ug/L 또는 수처리 장애",
+   "terms": [
+    "대량발생",
+    "마이크로시스틴-LR≥1ug/L",
+    "수처리장애"
+   ]
+  },
+  {
+   "id": "G05",
+   "bundle": "G",
+   "scope": "bundle",
+   "kind": "footnote",
+   "fact": "수처리 장애 정의",
+   "terms": [
+    "맛냄새민원대량발생",
+    "여과지막힘"
+   ]
+  },
+  {
+   "id": "G06",
+   "bundle": "G",
+   "scope": "bundle",
+   "kind": "count",
+   "fact": "분말활성탄 건량기준 10 mg/L 내외 우선 투입",
+   "terms": [
+    "건량기준10mg/L내외우선투입"
+   ]
+  },
+  {
+   "id": "G07",
+   "bundle": "G",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "입자: 응집-침전-여과",
+   "terms": [
+    "입자",
+    "응집-침전-여과"
+   ]
+  },
+  {
+   "id": "G08",
+   "bundle": "G",
+   "scope": "unit",
+   "kind": "relation",
+   "fact": "용존: 활성탄, 오존",
+   "terms": [
+    "용존",
+    "활성탄,오존"
+   ]
+  },
+  {
+   "id": "G09",
+   "bundle": "G",
+   "scope": "unit",
+   "kind": "count",
+   "fact": "입자 G/M 제거효율 약 100%",
+   "terms": [
+    "제거효율",
+    "G/M약100%"
+   ]
+  },
+  {
+   "id": "G10",
+   "bundle": "G",
+   "scope": "unit",
+   "kind": "count",
+   "fact": "분말활성탄 G 약 70%, M 약 50%",
+   "terms": [
+    "제거효율",
+    "G약70%",
+    "M약50%"
+   ]
+  },
+  {
+   "id": "G11",
+   "bundle": "G",
+   "scope": "bundle",
+   "kind": "footnote",
+   "fact": "G는 지오스민, M은 2-MIB",
+   "terms": [
+    "G:지오스민",
+    "M:2-MIB"
+   ]
+  }
+ ]
+}

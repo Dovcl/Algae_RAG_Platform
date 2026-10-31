@@ -114,9 +114,11 @@ function TimeseriesTab() {
                 {formatCells(last.predicted.q50)}
                 <span className="ml-1 text-sm font-normal text-slate-500">cells/mL</span>
               </p>
-              <p className="mt-1 text-xs text-slate-600">
-                범위 {formatCells(last.predicted.q20)} ~ {formatCells(last.predicted.q80)}
-              </p>
+              {last.predicted.q20 !== null && last.predicted.q80 !== null && (
+                <p className="mt-1 text-xs text-slate-600">
+                  범위 {formatCells(last.predicted.q20)} ~ {formatCells(last.predicted.q80)}
+                </p>
+              )}
             </div>
             <div className="rounded-lg border border-slate-200 bg-white p-4">
               <p className="text-xs font-semibold text-slate-500">예측 단계</p>

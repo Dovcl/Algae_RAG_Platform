@@ -18,6 +18,13 @@ class ChatLog(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     question: Mapped[str] = mapped_column(Text)
     answer: Mapped[str] = mapped_column(Text)
+    llm: Mapped[str | None] = mapped_column(String(64))
+    llm_model: Mapped[str | None] = mapped_column(String(64))
+    predict_backend: Mapped[str | None] = mapped_column(String(32))
+    # LLM이 실제로 본 입력, 원본 출력, 사용자에게 준 최종 응답을 나눠 둔다 (RAG.md 8-4절)
+    prompt: Mapped[str | None] = mapped_column(Text)
+    raw_output: Mapped[str | None] = mapped_column(Text)
+    final_response: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

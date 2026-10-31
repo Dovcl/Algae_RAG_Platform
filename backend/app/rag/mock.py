@@ -69,8 +69,8 @@ class MockAnswer:
     location: Location
     base_date: date
     observed: float | None  # log10(1 + cells/mL)
-    forecast: Prediction
-    stage: int
+    forecast: Prediction | None
+    stage: int | None
     actions: list[str]
     evidence: list[EvidenceItem]
     limitations: str
@@ -111,20 +111,28 @@ def build_answer(
 
     observed = observations.cyanocell(location, base)
     forecast = predictor.predict(location, base + timedelta(weeks=1))
-    stage = classify_stage(forecast.q50)
+    stage = None if forecast is None else classify_stage(forecast.q50)
 
     current = (
         "관측값이 없습니다"
         if observed is None
         else f"{round(to_cells(observed)):,} cells/mL로 관측됐습니다"
     )
-    answer = (
-        f"{location.code} 지점의 유해남조류는 {base.isoformat()}에 {current}. "
-        f"다음 주({forecast.target_date.isoformat()})에는 "
-        f"{round(to_cells(forecast.q50)):,} cells/mL"
-        f"(범위 {round(to_cells(forecast.q20)):,}~{round(to_cells(forecast.q80)):,})로 예측되며, "
-        f"{stage}단계에 해당합니다. 이 단계에서는 아래 조치가 권고됩니다 [1][2]."
-    )
+    answer = f"{location.code} 지점의 유해남조류는 {base.isoformat()}에 {current}. "
+    if forecast is None:
+        answer += "다음 주 예측값은 없습니다."
+    else:
+        spread = ""
+        if forecast.q20 is not None and forecast.q80 is not None:
+            spread = (
+                f"(범위 {round(to_cells(forecast.q20)):,}"
+                f"~{round(to_cells(forecast.q80)):,})"
+            )
+        answer += (
+            f"다음 주({forecast.target_date.isoformat()})에는 "
+            f"{round(to_cells(forecast.q50)):,} cells/mL{spread}로 예측되며, "
+            f"{stage}단계에 해당합니다. 이 단계에서는 아래 조치가 권고됩니다 [1][2]."
+        )
 
     return MockAnswer(
         location=location,
@@ -132,7 +140,7 @@ def build_answer(
         observed=observed,
         forecast=forecast,
         stage=stage,
-        actions=_ACTIONS_BY_STAGE[stage],
+        actions=[] if stage is None else _ACTIONS_BY_STAGE[stage],
         evidence=_EVIDENCE,
         limitations=(
             "모의 응답입니다. 언어 모델과 문서 검색이 아직 연결되지 않아 "
