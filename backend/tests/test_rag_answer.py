@@ -659,3 +659,88 @@ def test_action_answer_falls_back_when_row_is_missing(monkeypatch):
     monkeypatch.setattr(rag, "table_chunks", lambda *_: [])
 
     assert rag.action_answer(None, "경계 단계에서 수면관리자는 뭘 해?") is None
+
+
+def forecast_hit() -> Hit:
+    rows = [
+        "열: 구분 / 예측 값 / 예측 값",
+        "구분: 구분 | 예측 값: 상수원 구간 | 예측 값: 친수활동 구간",
+        "구분: 0 단 계 | 예측 값: 1,000세포/mL 미만 | 예측 값: 20,000세포/mL 미만",
+        "구분: 1 단 계(관심*) | 예측 값: 1,000 ~ 10,000세포/mL 미만 | 예측 값: 20,000 ~ 100,000세포/mL 미만",
+        "구분: 2 단 계(경계*) | 예측 값: 10,000 ~ 100,000세포/mL 미만 | 예측 값: 100,000세포/mL 이상",
+        "구분: 3 단 계 | 예측 값: 100,000 ~ 1,000,000세포/mL 미만 | 예측 값: -",
+    ]
+    return Hit(
+        chunk_id="c7",
+        document_id="DOC01",
+        document="문서",
+        publisher="기관",
+        page=154,
+        pdf_page=174,
+        section="예측",
+        table_id="표 3-1-7",
+        text="\n".join(rows),
+        distance=0.0,
+    )
+
+
+def test_forecast_stage_uses_table_rows(monkeypatch):
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: [forecast_hit()])
+
+    result = rag.forecast_answer(None, "조류 예측 1단계와 2단계의 세포수 구간은?")
+
+    assert "1단계(관심): 상수원 구간 1,000 ~ 10,000세포/mL 미만" in result.answer
+    assert "친수활동 구간 20,000 ~ 100,000세포/mL 미만" in result.answer
+    assert "3단계" not in result.answer
+
+
+def test_forecast_stage_marks_missing_zone(monkeypatch):
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: [forecast_hit()])
+
+    result = rag.forecast_answer(None, "조류 예측 3단계 세포수 구간은?")
+
+    assert "친수활동 구간 해당 없음" in result.answer
+
+
+def test_forecast_frequency_is_left_to_the_llm():
+    assert rag.forecast_answer(None, "조류예측 정보는 얼마나 자주 발표되나?") is None
+
+
+def test_drop_restated_removes_only_status_sentences():
+    text = "유해남조류 세포수는 22,114 cells/mL로 경계 단계에 근접합니다. 취수구 조치를 강화합니다. [1]"
+
+    assert rag.drop_restated(text) == "취수구 조치를 강화합니다. [1]"
+
+
+def test_drop_restated_keeps_quantile_notice():
+    text = "20%와 80% 분위수 값은 제공된 자료로 알 수 없습니다."
+
+    assert rag.drop_restated(text) == text
+
+
+def test_clean_limitations_cuts_broken_markup():
+    text = "**구간별 기준이 다릅니다.** 조정 필요 -></span></pre>`}**주의:**"
+
+    assert rag.clean_limitations(text) == "구간별 기준이 다릅니다. 조정 필요"
+
+
+def test_broken_evidence_id_is_not_shown(stubbed):
+    stubbed["output"] = {
+        "answer": "근거에 따라 정리한 충분히 긴 답변 문장입니다.",
+        "management_actions": [],
+        "evidence_ids": ["E1", "E2}] }  <!-- 문단 구분 -->"],
+        "limitations": "",
+    }
+
+    assert "<!--" not in run().limitations
+
+
+def test_bracket_actions_without_colon_are_removed(stubbed):
+    stubbed["output"] = {
+        "answer": "근거에 따라 정리한 충분히 긴 답변 문장입니다.\n\n[management_actions]\n1. 조치",
+        "management_actions": ["조치"],
+        "evidence_ids": [],
+        "limitations": "",
+    }
+
+    assert "management_actions" not in run().answer

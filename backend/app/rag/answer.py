@@ -123,6 +123,14 @@ ROLE_TERMS = {
     "환경청": "환경청장",
     "물환경연구소": "물환경연구소",
 }
+FORECAST_TABLE = "표 3-1-7"
+FORECAST_ROW = re.compile(
+    r"구분: (\d) 단 계(?:\((.+?)\*?\))? \| [^|]+: (.+?) \| [^|]+: (.+)"
+)
+FORECAST_WORDS = ("세포수", "구간", "기준", "얼마", "몇")
+# 지점 답변의 수치 문장은 코드가 붙인다. LLM이 다시 쓰면 값이나 구간을 틀리게 해석한다
+RESTATED = re.compile(r"\d{1,3}(?:,\d{3})+|\d+\s*cells/mL|경계 단계에 근접|비슷한 수준")
+LIMITATION_JUNK = re.compile(r"<|`|\{|->")
 ACTION_ROW = re.compile(r"단계: .+? \| 관계 기관: (.+?) \| 조치사항: (.+)")
 LAST_BRACKET = re.compile(r"\s*\([^()]*\)$")
 OFFICIAL_WORDS = ("단계", "경보", "기준", "조치", "구간", "발령", "해제", "대응")
@@ -134,7 +142,7 @@ EVIDENCE_MARK = re.compile(r"\s*\[E[^\]]*\]")
 EVIDENCE_LABEL = re.compile(r"\[?evidence_ids\]?\s*:?\s*", re.IGNORECASE)
 # 프롬프트를 어기고 answer에 붙은 조치 목록. 조치는 management_actions로 따로 받는다
 LEAKED_ACTIONS = re.compile(
-    r"\s*[\[*]*(?:management_actions|관리\s*조치(?:\s*요약)?)[\]*]*\s*:[\s\S]*$"
+    r"\s*(?:\[management_actions\]|[\[*]*(?:management_actions|관리\s*조치(?:\s*요약)?)[\]*]*\s*:)[\s\S]*$"
 )
 # 인용 번호는 "입니다 [1]."처럼 마침표 앞에도, "입니다. [1]"처럼 뒤에도 온다
 SENTENCE = re.compile(r".+?다(?:\s*\[\d+\])*\.(?:\s*\[\d+\])*(?=\s|$)|.+$")
@@ -336,6 +344,83 @@ def concept_answer(question: str) -> RagAnswer:
     )
 
 
+def fixed_answer(
+    question: str,
+    rule: str,
+    text: str,
+    evidence: list[Hit],
+    actions: list[str] | None = None,
+    limitations: str = "",
+) -> RagAnswer:
+    """LLM 없이 표의 값으로 만든 답. 어떤 규칙으로 답했는지 prompt에 남긴다."""
+    return RagAnswer(
+        location=None,
+        base_date=None,
+        observed=None,
+        forecast=None,
+        stage=None,
+        actions=actions or [],
+        evidence=evidence,
+        evidence_ids=[f"E{number}" for number in range(1, len(evidence) + 1)],
+        limitations=limitations,
+        answer=text,
+        prompt=json.dumps({"rule": rule, "user": question}, ensure_ascii=False),
+        raw_output="",
+    )
+
+
+def asks_forecast_stage(question: str) -> bool:
+    return (
+        "예측" in question
+        and "단계" in question
+        and any(word in question for word in FORECAST_WORDS)
+    )
+
+
+def forecast_answer(session: Session, question: str) -> RagAnswer | None:
+    """조류예측 단계의 세포수 구간을 표 3-1-7의 행으로 답한다. 표가 없으면 None이다."""
+    if not asks_forecast_stage(question):
+        return None
+    asked = re.findall(r"(\d)\s*단계", question)
+    lines: list[str] = []
+    evidence: list[Hit] = []
+    for hit in table_chunks(session, FORECAST_TABLE):
+        for line in hit.text.splitlines():
+            row = FORECAST_ROW.fullmatch(line)
+            if row is None or (asked and row[1] not in asked):
+                continue
+            if hit not in evidence:
+                evidence.append(hit)
+            name = f"{row[1]}단계" + (f"({row[2]})" if row[2] else "")
+            water = "해당 없음" if row[4].strip() == "-" else row[4]
+            lines.append(f"- {name}: 상수원 구간 {row[3]}, 친수활동 구간 {water} [1]")
+    if not lines:
+        return None
+    text = (
+        "\n".join(lines)
+        + "\n\n조류예측 단계는 모델 예측값의 구간이며 공식 경보 발령이 아닙니다."
+    )
+    return fixed_answer(question, f"{FORECAST_TABLE} 예측 단계", text, evidence)
+
+
+def drop_restated(text: str) -> str:
+    """LLM이 세포수나 구간 판단을 다시 쓴 문장을 지운다."""
+    lines = []
+    for line in text.split("\n"):
+        kept = [
+            sentence.strip()
+            for sentence in SENTENCE.findall(line)
+            if not RESTATED.search(re.sub(r"\[\d+\]", "", sentence))
+        ]
+        lines.append(" ".join(kept))
+    return "\n".join(lines)
+
+
+def clean_limitations(text: str) -> str:
+    """형식이 깨진 뒷부분과 굵은 글씨 표시를 지운다."""
+    return LIMITATION_JUNK.split(text)[0].replace("**", "").strip()
+
+
 def asks_criteria_value(question: str) -> bool:
     """표의 값을 묻는 질문인가. 한 번만 넘어도 발령하는지 같은 판단은 LLM에 맡긴다."""
     if not is_criteria_question(question):
@@ -384,20 +469,8 @@ def criteria_answer(session: Session, question: str) -> RagAnswer | None:
     notes.append(
         "발령주체는 기준에 도달해도 강우 예보 등 기상상황을 고려해 발령·해제하지 않을 수 있습니다."
     )
-    return RagAnswer(
-        location=None,
-        base_date=None,
-        observed=None,
-        forecast=None,
-        stage=None,
-        actions=[],
-        evidence=evidence,
-        evidence_ids=[f"E{number}" for number in range(1, len(evidence) + 1)],
-        limitations="",
-        answer="\n".join(lines) + "\n\n" + " ".join(notes),
-        prompt=json.dumps({"rule": "표 6 기준", "user": question}, ensure_ascii=False),
-        raw_output="",
-    )
+    text = "\n".join(lines) + "\n\n" + " ".join(notes)
+    return fixed_answer(question, "표 6 기준", text, evidence)
 
 
 def action_target(question: str) -> tuple[str, str, str] | None:
@@ -443,22 +516,8 @@ def action_answer(session: Session, question: str) -> RagAnswer | None:
     limitations = (
         "" if zone in question else "구간이 없어 상수원 구간 기준으로 답했습니다."
     )
-    return RagAnswer(
-        location=None,
-        base_date=None,
-        observed=None,
-        forecast=None,
-        stage=None,
-        actions=actions,
-        evidence=evidence,
-        evidence_ids=[f"E{number}" for number in range(1, len(evidence) + 1)],
-        limitations=limitations,
-        answer=f"{table}에 따른 {zone} 구간 {stage} 단계 {role_name}의 조치입니다. [1]",
-        prompt=json.dumps(
-            {"rule": f"{table} 조치", "user": question}, ensure_ascii=False
-        ),
-        raw_output="",
-    )
+    text = f"{table}에 따른 {zone} 구간 {stage} 단계 {role_name}의 조치입니다. [1]"
+    return fixed_answer(question, f"{table} 조치", text, evidence, actions, limitations)
 
 
 def split_sentences(line: str) -> str:
@@ -517,6 +576,7 @@ def build_answer(
         if asks_criteria_value(question):
             fixed = criteria_answer(session, question)
         fixed = fixed or action_answer(session, question)
+        fixed = fixed or forecast_answer(session, question)
         if fixed is not None:
             return fixed
 
@@ -559,8 +619,12 @@ def build_answer(
     used = [
         item for item in dict.fromkeys(output.evidence_ids + cited) if item in known
     ]
-    unknown = [item for item in output.evidence_ids if item not in known]
-    limitations = output.limitations
+    unknown = [
+        item
+        for item in output.evidence_ids
+        if item not in known and re.fullmatch(r"E\d+", item)
+    ]
+    limitations = clean_limitations(output.limitations)
     if unknown:
         limitations += (
             f" (제공하지 않은 근거 번호를 인용해 제외함: {', '.join(unknown)})"
@@ -597,6 +661,8 @@ def build_answer(
         text = text.replace(f"[{item}]", f"[{number}]")
     text = EVIDENCE_MARK.sub("", text)
     text = LEAKED_ACTIONS.sub("", text)
+    if observed is not None or forecast is not None:
+        text = drop_restated(text)
     # 본문에 번호가 없는 근거는 끝에 붙여 출처 목록과 맞춘다
     text = text.rstrip() + "".join(
         f"[{number}]" for number in range(1, len(used) + 1) if f"[{number}]" not in text
