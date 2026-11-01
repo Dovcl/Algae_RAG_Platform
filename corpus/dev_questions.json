@@ -129,6 +129,9 @@
   "expected": [
    {
     "document_id": "DOC02",
+    "pdf_page": 8
+   }, {
+    "document_id": "DOC02",
     "pdf_page": 35
    }
   ]
