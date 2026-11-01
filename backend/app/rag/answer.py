@@ -93,8 +93,9 @@ CONCEPT_WORDS = (
     "설명",
 )
 ZONES = ("상수원", "친수활동")
-# 표 6의 해제 기준. LLM이 단계별 해제 기준을 지어낸 적이 있어 코드가 쓴다
-RELEASE_CELLS = {"상수원": "1,000", "친수활동": "20,000"}
+# 표 6의 행. LLM이 없는 해제 기준을 지어내거나 상한을 빠뜨린 적이 있어 코드가 쓴다
+CRITERIA_ROW = re.compile(r"구간: (.+?)구간 \| 단계: (.+?) \| 발령·해제 기준: (.+)")
+VALUE_WORDS = ("기준은", "기준이", "얼마", "몇", "언제")
 # 구간·단계별 조치 표. LLM이 다른 기관의 조치를 섞은 적이 있어 표의 행을 그대로 쓴다
 ACTION_TABLES = {
     ("상수원", "관심"): "표 7",
@@ -335,25 +336,53 @@ def concept_answer(question: str) -> RagAnswer:
     )
 
 
-def release_answer(session: Session, question: str) -> RagAnswer | None:
-    """해제 기준 질문에 표 6의 값으로 답한다. 표가 적재되어 있지 않으면 None을 돌려준다."""
-    asked = [zone for zone in ZONES if zone in question] or list(ZONES)
-    hits = [
-        hit
-        for zone in asked
-        for hit in table_chunks(session, CRITERIA_TABLE)
-        if f"구간: {zone}구간" in hit.text
+def asks_criteria_value(question: str) -> bool:
+    """표의 값을 묻는 질문인가. 한 번만 넘어도 발령하는지 같은 판단은 LLM에 맡긴다."""
+    if not is_criteria_question(question):
+        return False
+    return "해제" in question or any(word in question for word in VALUE_WORDS)
+
+
+def criteria_answer(session: Session, question: str) -> RagAnswer | None:
+    """발령·해제 기준 질문에 표 6의 행으로 답한다. 표가 없으면 None을 돌려준다."""
+    zones = [zone for zone in ZONES if zone in question] or list(ZONES)
+    releasing = "해제" in question
+    stages = [
+        stage
+        for stage, terms in STAGE_TERMS.items()
+        if stage != "해제" and any(term in question for term in terms)
     ]
-    if len(hits) != len(asked):
+    lines: list[str] = []
+    evidence: list[Hit] = []
+    answered: set[str] = set()
+    for hit in table_chunks(session, CRITERIA_TABLE):
+        for line in hit.text.splitlines():
+            row = CRITERIA_ROW.fullmatch(line)
+            if row is None or row[1] not in zones:
+                continue
+            stage = row[2].replace(" ", "")
+            if (stage == "해제") != releasing or (
+                stages and not releasing and stage not in stages
+            ):
+                continue
+            if hit not in evidence:
+                evidence.append(hit)
+            answered.add(row[1])
+            label = f"{row[1]} 구간" if releasing else f"{row[1]} 구간 {stage}"
+            lines.append(f"- {label}: {row[3]} [{evidence.index(hit) + 1}]")
+    if not lines:
         return None
-    lines = [
-        f"- {zone} 구간: 2회 연속 채취 시 남조류 세포수가 "
-        f"{RELEASE_CELLS[zone]} 세포/mL 미만인 경우 [{number}]"
-        for number, zone in enumerate(asked, start=1)
+    notes = [
+        f"{zone} 구간에는 이 단계의 기준이 없습니다."
+        for zone in zones
+        if zone not in answered
     ]
-    text = "\n".join(lines) + (
-        "\n\n표 6의 해제 기준은 구간마다 하나이며 단계별로 따로 정하지 않습니다. "
-        "발령주체는 기준에 도달해도 강우 예보 등 기상상황을 고려해 해제하지 않을 수 있습니다."
+    if releasing:
+        notes.append(
+            "표 6의 해제 기준은 구간마다 하나이며 단계별로 따로 정하지 않습니다."
+        )
+    notes.append(
+        "발령주체는 기준에 도달해도 강우 예보 등 기상상황을 고려해 발령·해제하지 않을 수 있습니다."
     )
     return RagAnswer(
         location=None,
@@ -362,13 +391,11 @@ def release_answer(session: Session, question: str) -> RagAnswer | None:
         forecast=None,
         stage=None,
         actions=[],
-        evidence=hits,
-        evidence_ids=[f"E{number}" for number in range(1, len(hits) + 1)],
+        evidence=evidence,
+        evidence_ids=[f"E{number}" for number in range(1, len(evidence) + 1)],
         limitations="",
-        answer=text,
-        prompt=json.dumps(
-            {"rule": "표 6 해제 기준", "user": question}, ensure_ascii=False
-        ),
+        answer="\n".join(lines) + "\n\n" + " ".join(notes),
+        prompt=json.dumps({"rule": "표 6 기준", "user": question}, ensure_ascii=False),
         raw_output="",
     )
 
@@ -485,19 +512,13 @@ def build_answer(
     if location is None and base is None and is_concept_question(question):
         return concept_answer(question)
 
-    if (
-        location is None
-        and base is None
-        and "해제" in question
-        and is_criteria_question(question)
-    ):
-        release = release_answer(session, question)
-        if release is not None:
-            return release
     if location is None and base is None:
-        actions = action_answer(session, question)
-        if actions is not None:
-            return actions
+        fixed = None
+        if asks_criteria_value(question):
+            fixed = criteria_answer(session, question)
+        fixed = fixed or action_answer(session, question)
+        if fixed is not None:
+            return fixed
 
     if location is not None and base is None:
         base = observations.weeks(location, None, None, 2)[0]

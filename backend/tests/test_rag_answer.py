@@ -39,6 +39,7 @@ def stubbed(monkeypatch):
 
     monkeypatch.setattr(rag, "ask_ollama", fake_ollama)
     monkeypatch.setattr(rag, "search_evidence", lambda *_: [make_hit(1), make_hit(2)])
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: [])
     return calls
 
 
@@ -488,6 +489,33 @@ def test_phrase_chunks_go_first_and_are_capped(monkeypatch):
     ]
 
 
+CRITERIA_ROWS = {
+    "상수원": [
+        (
+            "관심",
+            "2회 연속 채취 시 남조류 세포수가 1,000 세포/mL 이상 10,000 세포/mL 미만인 경우",
+        ),
+        (
+            "경계",
+            "2회 연속 채취 시 남조류 세포수가 10,000 세포/mL 이상 1,000,000 세포/mL 미만인 경우",
+        ),
+        (
+            "조류 대발생",
+            "2회 연속 채취 시 남조류 세포수가 1,000,000 세포/mL 이상인 경우",
+        ),
+        ("해제", "2회 연속 채취 시 남조류 세포수가 1,000 세포/mL 미만인 경우"),
+    ],
+    "친수활동": [
+        (
+            "관심",
+            "2회 연속 채취 시 남조류 세포수가 20,000 세포/mL 이상 100,000 세포/mL 미만인 경우",
+        ),
+        ("경계", "2회 연속 채취 시 남조류 세포수가 100,000 세포/mL 이상인 경우"),
+        ("해제", "2회 연속 채취 시 남조류 세포수가 20,000 세포/mL 미만인 경우"),
+    ],
+}
+
+
 def criteria_hits() -> list[Hit]:
     return [
         Hit(
@@ -499,18 +527,20 @@ def criteria_hits() -> list[Hit]:
             pdf_page=34,
             section="1.3.2",
             table_id="표 6",
-            text=f"구간: {zone}구간 | 단계: 해제",
+            text="\n".join(
+                f"구간: {zone}구간 | 단계: {stage} | 발령·해제 기준: {value}"
+                for stage, value in rows
+            ),
             distance=0.0,
         )
-        for zone in ("상수원", "친수활동")
+        for zone, rows in CRITERIA_ROWS.items()
     ]
 
 
-def test_release_question_uses_table_values_without_llm(stubbed, monkeypatch):
+def test_release_criteria_come_from_the_table(monkeypatch):
     monkeypatch.setattr(rag, "table_chunks", lambda *_: criteria_hits())
-    monkeypatch.setattr(rag, "ask_ollama", pytest.fail)
 
-    result = rag.release_answer(None, "조류경보 해제 기준은?")
+    result = rag.criteria_answer(None, "조류경보 해제 기준은?")
 
     assert (
         "상수원 구간: 2회 연속 채취 시 남조류 세포수가 1,000 세포/mL 미만"
@@ -524,20 +554,53 @@ def test_release_question_uses_table_values_without_llm(stubbed, monkeypatch):
     assert len(result.evidence) == 2
 
 
-def test_release_question_keeps_asked_zone_only(monkeypatch):
+def test_stage_criteria_keep_the_upper_limit(monkeypatch):
     monkeypatch.setattr(rag, "table_chunks", lambda *_: criteria_hits())
 
-    result = rag.release_answer(None, "친수활동 구간 해제 기준은?")
+    result = rag.criteria_answer(None, "남조류가 얼마면 경계 단계야?")
+
+    assert "10,000 세포/mL 이상 1,000,000 세포/mL 미만" in result.answer
+    assert "100,000 세포/mL 이상" in result.answer
+    assert "관심" not in result.answer
+
+
+def test_criteria_keep_the_asked_zone_only(monkeypatch):
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: criteria_hits())
+
+    result = rag.criteria_answer(None, "친수활동 구간 해제 기준은?")
 
     assert "20,000" in result.answer
     assert "상수원" not in result.answer
     assert [hit.chunk_id for hit in result.evidence] == ["c친수활동"]
 
 
-def test_release_question_falls_back_without_table(monkeypatch):
+def test_criteria_say_when_a_zone_has_no_such_stage(monkeypatch):
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: criteria_hits())
+
+    result = rag.criteria_answer(None, "조류대발생 발령 기준은?")
+
+    assert "1,000,000 세포/mL 이상" in result.answer
+    assert "친수활동 구간에는 이 단계의 기준이 없습니다." in result.answer
+
+
+def test_criteria_fall_back_without_table(monkeypatch):
     monkeypatch.setattr(rag, "table_chunks", lambda *_: [])
 
-    assert rag.release_answer(None, "조류경보 해제 기준은?") is None
+    assert rag.criteria_answer(None, "조류경보 해제 기준은?") is None
+
+
+@pytest.mark.parametrize(
+    ("question", "expected"),
+    [
+        ("조류경보 발령 기준은?", True),
+        ("남조류가 얼마면 경계 단계야?", True),
+        ("경보는 언제 해제돼?", True),
+        ("남조류 세포수가 한 번만 기준을 넘으면 경보를 발령하는가?", False),
+        ("경계 단계에서 취수장은 뭘 해야 해?", False),
+    ],
+)
+def test_asks_criteria_value(question, expected):
+    assert rag.asks_criteria_value(question) is expected
 
 
 def action_hit() -> Hit:

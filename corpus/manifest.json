@@ -34,7 +34,7 @@
       "file": "data/docs/DOC03_water_treatment_algae_guideline_2017-05.pdf",
       "sha256": "c5cb5484414906054d52e845894287a520fe982150428dde220901dda96fc74a",
       "source_url": "https://m.korea.kr/expertWeb/resources/files/data/document_file/2017/%EC%A0%95%EC%88%98%EC%9E%A5%20%EC%A1%B0%EB%A5%98%20%EB%8C%80%EC%9D%91%20%EA%B0%80%EC%9D%B4%EB%93%9C%EB%9D%BC%EC%9D%B8%282017.05%29.pdf",
-      "page_ranges": [{"pdf_start": 5, "pdf_end": 8, "printed_offset": 3}],
+      "page_ranges": [{"pdf_start": 4, "pdf_end": 63, "printed_offset": 3}],
       "strip_lines": []
     }
   ]
