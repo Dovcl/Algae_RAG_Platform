@@ -22,6 +22,18 @@ function renderWithCitations(text: string) {
   )
 }
 
+/** 답변의 한 줄. "- "로 시작하면 글머리 항목으로, 들여쓴 항목은 한 단계 안쪽으로 그린다 */
+function AnswerLine({ line }: { line: string }) {
+  const text = line.trimStart()
+  if (!text.startsWith('- ')) return <p>{renderWithCitations(text)}</p>
+  return (
+    <p className={`flex gap-2 ${line === text ? 'pl-1' : 'pl-6'}`}>
+      <span className="text-slate-400">•</span>
+      <span>{renderWithCitations(text.slice(2))}</span>
+    </p>
+  )
+}
+
 function Answer({ data }: AnswerProps) {
   const isMock = data.llm === 'mock' || data.predict_backend === 'mock'
 
@@ -37,7 +49,15 @@ function Answer({ data }: AnswerProps) {
 
       <EvidenceCards data={data} />
 
-      <p className="text-[15px] leading-7 text-slate-800">{renderWithCitations(data.answer)}</p>
+      <div className="flex flex-col gap-3 text-[15px] leading-7 text-slate-800">
+        {data.answer.split(/\n{2,}/).map((paragraph, index) => (
+          <div key={index}>
+            {paragraph.split('\n').map((line, lineIndex) => (
+              <AnswerLine key={lineIndex} line={line} />
+            ))}
+          </div>
+        ))}
+      </div>
 
       {data.management_actions.length > 0 && (
         <div>

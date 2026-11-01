@@ -92,6 +92,65 @@ def test_removes_html_line_breaks(stubbed):
     assert "<br>" not in run().answer
 
 
+def test_status_and_llm_text_are_separate_paragraphs(stubbed):
+    stubbed["output"] = {
+        "answer": "수질 변화를 먼저 정리합니다.\n \n\n대응의 요지를 이어서 정리합니다.",
+        "management_actions": [],
+        "evidence_ids": [],
+        "limitations": "",
+    }
+
+    paragraphs = run(LOCATIONS["CS"], date(2023, 6, 12)).answer.split("\n\n")
+
+    assert len(paragraphs) == 3
+    assert "cells/mL" in paragraphs[0]
+    assert paragraphs[1:] == [
+        "수질 변화를 먼저 정리합니다.",
+        "대응의 요지를 이어서 정리합니다.",
+    ]
+
+
+def test_cleans_bold_and_inline_numbering(stubbed):
+    stubbed["output"] = {
+        "answer": "**상수원 구간** 대응입니다: 1) 차단막을 설치합니다. 2) 정수를 강화합니다.",
+        "management_actions": [],
+        "evidence_ids": [],
+        "limitations": "",
+    }
+
+    assert run().answer == (
+        "상수원 구간 대응입니다:\n1) 차단막을 설치합니다.\n2) 정수를 강화합니다."
+    )
+
+
+def test_tidy_text_splits_long_paragraph_every_two_sentences():
+    text = "첫 문장입니다. [1] 둘째 문장입니다. 셋째 문장입니다."
+
+    assert (
+        rag.tidy_text(text) == "첫 문장입니다. [1] 둘째 문장입니다.\n\n셋째 문장입니다."
+    )
+
+
+def test_tidy_text_counts_sentence_with_citation_before_period():
+    text = "첫 문장입니다 [1]. 둘째 문장입니다 [2]. 셋째 문장입니다."
+
+    assert rag.tidy_text(text) == (
+        "첫 문장입니다 [1]. 둘째 문장입니다 [2].\n\n셋째 문장입니다."
+    )
+
+
+def test_tidy_text_keeps_lists_and_joins_lone_citations():
+    text = "기준입니다:\n\n- 상수원: 1,000 미만입니다.\n\n[1], [2]"
+
+    assert rag.tidy_text(text) == "기준입니다:\n\n- 상수원: 1,000 미만입니다. [1][2]"
+
+
+def test_tidy_text_removes_comma_left_by_dropped_citation():
+    assert (
+        rag.tidy_text("강화해야 합니다 (, [3] 참조).") == "강화해야 합니다 ([3] 참조)."
+    )
+
+
 def test_no_location_has_no_numbers(stubbed):
     stubbed["output"] = {
         "answer": "제공된 근거에 따라 정리한 충분히 긴 답변 문장입니다.",
