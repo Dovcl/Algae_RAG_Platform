@@ -21,7 +21,8 @@
       "file": "data/docs/DOC02_algae_alert_manual_2025-08.pdf",
       "sha256": "fd1ccf1f60b9ab09ecf697c4f6c0e4766eb0feb33b035ae0a9145dc3f5dcb999",
       "source_url": "https://www.water.or.kr/upload/board/2026/04/20260416110044_1.pdf",
-      "page_ranges": [{"pdf_start": 34, "pdf_end": 50, "printed_offset": 4}],
+      "page_ranges": [{"pdf_start": 5, "pdf_end": 51, "printed_offset": 4}, {"pdf_start": 109, "pdf_end": 114, "printed_offset": 4}],
+      "exclude_tables": ["표 1", "표 2", "표 3", "표 4", "표 5"],
       "strip_lines": ["^조류경보제 운영 매뉴얼$", "^Ⅲ\\. 조류경보제 운영$", "^\\d+$", "^[\\s\\u0307]+$"]
     },
     {

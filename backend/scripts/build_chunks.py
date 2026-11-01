@@ -14,9 +14,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "corpus" / "manifest.json"
-PARSE_RUN_ID = "upstage-enhanced-v1"
-CHUNKING_VERSION = "chunk-v2"
+PARSE_RUN_ID = "upstage-enhanced-v3"
+CHUNKING_VERSION = "chunk-v4"
 MAX_CHARS = 900
+MAX_TABLE_CHARS = 1500
 MIN_FIGURE_CHARS = 40
 PARTS = ("상수원", "친수활동")
 
@@ -63,6 +64,21 @@ def row_line(columns: list[str], row: list[str]) -> str:
     return " | ".join(cells)
 
 
+def split_rows(columns: list[str], rows: list[list[str]]) -> list[list[list[str]]]:
+    """행을 자르지 않고 MAX_TABLE_CHARS 안에서 묶는다. 넘으면 임베딩이 거부한다."""
+    parts: list[list[list[str]]] = []
+    current: list[list[str]] = []
+    size = 0
+    for row in rows:
+        length = len(row_line(columns, row))
+        if current and size + length > MAX_TABLE_CHARS:
+            parts.append(current)
+            current, size = [], 0
+        current.append(row)
+        size += length
+    return [*parts, current]
+
+
 def table_chunks(doc: dict, block: dict, notes: list[str]) -> list[dict]:
     """첫 열 값(구간이나 단계)이 같은 행끼리 묶는다. 묶음마다 비고를 반복한다."""
     groups: dict[str, list[list[str]]] = {}
@@ -80,14 +96,15 @@ def table_chunks(doc: dict, block: dict, notes: list[str]) -> list[dict]:
 
     chunks = []
     for label, rows in groups.items():
-        lines = [f"열: {' / '.join(' '.join(c.split()) for c in columns)}"]
-        lines += [row_line(columns, row) for row in rows]
-        lines += notes
         part = part_of(f"{label} {block.get('caption') or ''}")
         conditions = {"구간": part} if part else {}
         if label:
             conditions["구분"] = " ".join(label.split())
-        chunks.append(chunk(doc, [block], "\n".join(lines), conditions))
+        for piece in split_rows(columns, rows):
+            lines = [f"열: {' / '.join(' '.join(c.split()) for c in columns)}"]
+            lines += [row_line(columns, row) for row in piece]
+            lines += notes
+            chunks.append(chunk(doc, [block], "\n".join(lines), conditions))
     return chunks
 
 
@@ -125,8 +142,10 @@ def is_junk(block: dict) -> bool:
 def document_chunks(doc: dict, blocks: list[dict]) -> list[dict]:
     chunks: list[dict] = []
     pending: list[dict] = []
+    # 지점 목록처럼 질문과 상관없는 단어로 조치 근거를 밀어내는 표는 검색에 넣지 않는다
+    excluded = doc.get("exclude_tables", [])
     for index, block in enumerate(blocks):
-        if is_junk(block):
+        if is_junk(block) or block.get("table_id") in excluded:
             continue
         if block["type"] == "table":
             chunks += text_chunks(doc, pending)

@@ -19,7 +19,8 @@ ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "corpus" / "manifest.json"
 CORRECTIONS = ROOT / "corpus" / "parsed_corrections.json"
 RAW = ROOT / "data" / "parser_eval" / "upstage-enhanced"
-PARSE_RUN_ID = "upstage-enhanced-v1"
+PARSE_RUN_ID = "upstage-enhanced-v3"
+MAX_HEADING = 80
 SKIP = {"header", "footer"}
 PRIVATE_USE = re.compile(r"[\ue000-\uf8ff]")
 TABLE_ID = re.compile(r"(표\s*[\d-]+|그림\s*[\d-]+|<표\s*[\d-]+>|<그림\s*[\d-]+>)")
@@ -97,11 +98,14 @@ def page_blocks(
         if category in SKIP:
             continue
         text = plain(html)
-        if category.startswith("heading"):
+        if category.startswith("heading") and len(text) <= MAX_HEADING:
             section = " ".join(text.split())
             continue
         if category == "caption":
             caption = " ".join(text.split())
+            continue
+        if category == "chart":  # 모델이 그래프에서 추정한 표와 설명이라 넣지 않는다
+            caption = None
             continue
         block = {
             "block_id": f"{doc_id}-p{page:03d}-b{number:02d}",
@@ -113,7 +117,10 @@ def page_blocks(
             "section": section,
         }
         if category == "table":
-            grid = table_grid(html)
+            # 표 칸 안의 사진에 붙은 설명은 모델이 쓴 글이라 넣지 않는다
+            grid = table_grid(
+                re.sub(r"<figure\b.*?</figure>", "", html, flags=re.DOTALL)
+            )
             if len(grid) > 1:
                 block["type"] = "table"
                 block["columns"] = grid[0]
@@ -150,19 +157,34 @@ def replace_in_rows(block: dict, fix: dict) -> bool:
     return changed
 
 
+def replace_in_text(block: dict, fix: dict) -> bool:
+    if fix["old"] not in block["text"]:
+        return False
+    block["text"] = block["text"].replace(fix["old"], fix["new"])
+    return True
+
+
 def apply_corrections(blocks: list[dict], corrections: list[dict]) -> None:
     by_id = {block["block_id"]: block for block in blocks}
     for fix in corrections:
         block = by_id.get(fix["block_id"])
         if block is None:
             continue
+        if fix.get("drop"):
+            blocks.remove(block)
+            continue
         block.update(fix.get("set", {}))
+        if "pair_rows" in fix:  # 이름과 설명이 한 줄씩 번갈아 나오는 표
+            cells = [row[0] for row in [block["columns"], *block["rows"]]]
+            block["columns"] = fix["pair_rows"]
+            block["rows"] = [cells[i : i + 2] for i in range(0, len(cells), 2)]
         if "add_text" in fix:
             block["text"] = f"{block['text']}\n{fix['add_text']}"
         if "fill_empty_first" in fix:
             for row in block["rows"]:
                 row[0] = row[0] or fix["fill_empty_first"]
-        if "old" in fix and not replace_in_rows(block, fix):
+        replace = replace_in_rows if "rows" in block else replace_in_text
+        if "old" in fix and not replace(block, fix):
             raise SystemExit(f"보정 대상을 찾지 못했습니다: {fix}")
         block["review"] = {"status": "corrected", "reason": fix["reason"]}
 
