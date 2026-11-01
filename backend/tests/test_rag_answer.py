@@ -151,6 +151,42 @@ def test_tidy_text_removes_comma_left_by_dropped_citation():
     )
 
 
+@pytest.mark.parametrize(
+    ("question", "expected"),
+    [
+        ("예측 중앙값은 무슨 뜻이야?", True),
+        ("클로로필-a가 뭐야?", True),
+        ("경계 단계가 뭐야?", False),
+        ("조류경보 해제 기준은 무엇인가?", False),
+        ("취수장은 뭘 해야 해?", False),
+    ],
+)
+def test_is_concept_question(question, expected):
+    assert rag.is_concept_question(question) is expected
+
+
+def test_concept_question_skips_documents(stubbed, monkeypatch):
+    def fail(*_):
+        raise AssertionError("개념 질문은 문서를 검색하지 않는다")
+
+    monkeypatch.setattr(rag, "search_evidence", fail)
+    stubbed["output"] = {
+        "answer": "중앙값은 값을 크기순으로 놓았을 때 가운데 값입니다 [1].",
+        "management_actions": ["지어낸 조치"],
+        "evidence_ids": ["E1"],
+        "limitations": "",
+    }
+
+    result = rag.build_answer(
+        None, "중앙값이 뭐야?", None, None, MockPredictor(), MockObservations()
+    )
+
+    assert result.answer == "중앙값은 값을 크기순으로 놓았을 때 가운데 값입니다."
+    assert result.actions == []
+    assert result.evidence == []
+    assert result.limitations == rag.CONCEPT_NOTE
+
+
 def test_no_location_has_no_numbers(stubbed):
     stubbed["output"] = {
         "answer": "제공된 근거에 따라 정리한 충분히 긴 답변 문장입니다.",
