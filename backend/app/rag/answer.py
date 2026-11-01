@@ -101,6 +101,30 @@ ROUTE_SCHEMA = {
     "required": ["route"],
 }
 ROUTE_MAX_TOKENS = 20
+# 앞 대화를 가리키는 표현. LLM에 묻지 않고 이어지는 질문으로 본다
+REFERENCE = re.compile(
+    r"(^|\s)(그건|그거|그게|그걸|그것|그럼|그러면|그래서|그렇다면|그때|거기|이건|이거|저건|그\s)"
+    r"|왜 그래|더 자세히|자세히 설명|다시 설명"
+)
+FOLLOW_UP_SYSTEM = """새 질문이 앞 대화 없이 혼자서 무엇을 묻는지 알 수 있는지 판단한다.
+- 묻는 대상이 빠져 있으면 dependent다. 예: "왜 줄어들어?", "조류대발생 때는?", "수면관리자는?", "왜 더 높아?"
+- 대상과 묻는 내용이 다 있으면 independent다. 예: "조류경보 해제 기준은?", "활성탄 투입량은?", "DO가 뭐야?", "남조류가 뭐야?", "칠곡보 다음 주 전망은?"
+앞 대화와 주제가 달라도 혼자서 뜻이 통하면 independent다."""
+FOLLOW_UP_SCHEMA = {
+    "type": "object",
+    "properties": {"kind": {"enum": ["dependent", "independent"]}},
+    "required": ["kind"],
+}
+REWRITE_SYSTEM = """대화 기록의 마지막 대상을 넣어 새 질문을 혼자서 뜻이 통하는 질문 한 문장으로 바꾼다.
+- 답하지 않는다. 설명문을 쓰지 말고 물음표로 끝나는 질문만 쓴다.
+- 대화에 없는 수치나 내용을 넣지 않는다. 짧고 단순하게 쓴다."""
+REWRITE_SCHEMA = {
+    "type": "object",
+    "properties": {"question": {"type": "string"}},
+    "required": ["question"],
+}
+REWRITE_MAX_TOKENS = 80
+REWRITE_MAX_CHARS = 120
 ZONES = ("상수원", "친수활동")
 # 표 6의 행. LLM이 없는 해제 기준을 지어내거나 상한을 빠뜨린 적이 있어 코드가 쓴다
 CRITERIA_ROW = re.compile(r"구간: (.+?)구간 \| 단계: (.+?) \| 발령·해제 기준: (.+)")
@@ -141,7 +165,7 @@ FORECAST_WORDS = ("세포수", "구간", "기준", "얼마", "몇")
 RESTATED = re.compile(r"\d{1,3}(?:,\d{3})+|\d+\s*cells/mL|경계 단계에 근접|비슷한 수준")
 # 맨 앞 번호. "2회 이상"처럼 내용인 숫자는 남긴다
 ACTION_NUMBER = re.compile(
-    r"^\s*\d+(?:[.)]\s*|(?=[가-힣])(?![회개단차주일시명곳년월]))"
+    r"^\s*(?:[*•-]\s*)?(?:\d+(?:[.)]\s*|\s+|(?=[가-힣])(?![회개단차주일시명곳년월])))?"
 )
 LIMITATION_JUNK = re.compile(r"<|`|\{|->")
 ACTION_ROW = re.compile(r"단계: .+? \| 관계 기관: (.+?) \| 조치사항: (.+)")
@@ -200,6 +224,42 @@ def site_request(question: str) -> str | None:
                 f"{', '.join(sites)} 중 어느 지점인지 알려 주세요."
             )
     return "관측값과 예측값은 지점별로 있습니다. 어느 지점인지 알려 주세요."
+
+
+def is_follow_up(question: str) -> bool:
+    """앞 대화 없이는 뜻이 통하지 않는가. 독립 질문까지 고쳐 쓰면 기준 답변이 깨진다."""
+    if REFERENCE.search(question):
+        return True
+    try:
+        raw = ask_ollama(
+            FOLLOW_UP_SYSTEM,
+            question,
+            schema=FOLLOW_UP_SCHEMA,
+            num_predict=ROUTE_MAX_TOKENS,
+        )
+        return json.loads(raw)["kind"] == "dependent"
+    except (LlmError, ValueError, KeyError):
+        return False
+
+
+def rewrite_question(question: str, turns: list[tuple[str, str]]) -> str:
+    """이어지는 질문을 혼자서 뜻이 통하는 문장으로 바꾼다. 실패하면 원래 질문을 쓴다."""
+    log = "\n".join(f"질문: {asked}\n답변: {said}" for asked, said in turns)
+    user = f"[대화 기록]\n{log}\n\n[새 질문]\n{question}"
+    try:
+        raw = ask_ollama(
+            REWRITE_SYSTEM,
+            user,
+            schema=REWRITE_SCHEMA,
+            num_predict=REWRITE_MAX_TOKENS,
+        )
+        rewritten = json.loads(raw)["question"].strip()
+    except (LlmError, ValueError, KeyError):
+        return question
+    # 질문이 아니라 답을 써 버린 경우를 버린다
+    if not rewritten.endswith("?") or len(rewritten) > REWRITE_MAX_CHARS:
+        return question
+    return rewritten
 
 
 def needs_document(question: str) -> bool:

@@ -11,12 +11,20 @@ from app.db.session import get_db
 from app.ml.locations import LOCATIONS, Location
 from app.ml.observations import Observations, get_observations
 from app.ml.predictor import Predictor, get_predictor, to_cells
-from app.rag.answer import LlmError
+from app.rag.answer import LlmError, is_follow_up, rewrite_question
 from app.rag.answer import build_answer as build_rag_answer
 from app.rag.mock import build_answer, find_date, find_location
 from app.routers.predict import Quantiles, to_quantiles
 
 router = APIRouter(tags=["Chat"])
+MAX_HISTORY = 3
+
+
+class PastTurn(BaseModel):
+    question: str = Field(max_length=2000)
+    answer: str = Field(max_length=2000)
+    location: str | None = None
+    base_date: date | None = None
 
 
 class ChatRequest(BaseModel):
@@ -24,6 +32,8 @@ class ChatRequest(BaseModel):
     # 실험에서는 시나리오의 지점과 기준일을 직접 넘긴다. 생략하면 질문에서 찾는다.
     location: str | None = None
     base_date: date | None = None
+    # 연속 질문에만 쓴다. 비어 있으면 질문 하나로 답하므로 평가 결과에 영향이 없다.
+    history: list[PastTurn] = Field(default_factory=list, max_length=MAX_HISTORY)
 
 
 class CurrentStatus(BaseModel):
@@ -70,12 +80,24 @@ def _ollama_chat(
     session: Session,
 ) -> ChatResponse:
     question = request.question
+    searched = question
+    base_date = request.base_date
     try:
+        if request.history and is_follow_up(question):
+            turns = [(turn.question, turn.answer) for turn in request.history]
+            searched = rewrite_question(question, turns)
+            # 재작성 문장에는 앞 답의 예측 주 날짜가 섞일 수 있다.
+            # 사용자가 이번에 말하지 않았으면 직전 답의 지점과 기준일을 쓴다
+            last = request.history[-1]
+            location = location or find_location(question)
+            if location is None and last.location is not None:
+                location = LOCATIONS.get(last.location)
+            base_date = base_date or find_date(question) or last.base_date
         result = build_rag_answer(
             session,
-            question,
-            location or find_location(question),
-            request.base_date or find_date(question),
+            searched,
+            location or find_location(searched),
+            base_date or find_date(searched),
             predictor,
             observations,
         )

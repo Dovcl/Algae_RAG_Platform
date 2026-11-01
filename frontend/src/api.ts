@@ -77,10 +77,19 @@ export type ChatResponse = {
   predict_backend: string
 }
 
+/** 연속 질문을 위해 함께 보내는 앞 대화 한 턴 */
+export type PastTurn = {
+  question: string
+  answer: string
+  location: string | null
+  base_date: string | null
+}
+
 export async function postChat(
   question: string,
   location: string,
   baseDate: string,
+  history: PastTurn[],
 ): Promise<ChatResponse> {
   const res = await fetch('/api/chat', {
     method: 'POST',
@@ -89,6 +98,7 @@ export async function postChat(
       question,
       location: location || null,
       base_date: baseDate || null,
+      history,
     }),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)

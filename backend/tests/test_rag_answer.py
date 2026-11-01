@@ -794,7 +794,56 @@ def test_leaked_action_examples_are_removed(stubbed):
         ("1정기적인 수질 모니터링", "정기적인 수질 모니터링"),
         ("1. 시료 채취", "시료 채취"),
         ("2회 이상 시료 채취", "2회 이상 시료 채취"),
+        ("* 경계 경보 발령 검토", "경계 경보 발령 검토"),
+        ("- 오염원 단속 강화", "오염원 단속 강화"),
+        ("1 취수구 위치 조정", "취수구 위치 조정"),
     ],
 )
 def test_action_number_keeps_real_counts(action, expected):
     assert rag.ACTION_NUMBER.sub("", action) == expected
+
+
+@pytest.mark.parametrize(
+    "question", ["그건 왜 그래?", "그럼 대응은?", "더 자세히 설명해줘"]
+)
+def test_reference_words_skip_llm(monkeypatch, question):
+    monkeypatch.setattr(rag, "ask_ollama", pytest.fail)
+
+    assert rag.is_follow_up(question) is True
+
+
+def test_follow_up_comes_from_llm(monkeypatch):
+    monkeypatch.setattr(rag, "ask_ollama", lambda *_, **__: '{"kind": "independent"}')
+    assert rag.is_follow_up("DO가 뭐야?") is False
+
+    monkeypatch.setattr(rag, "ask_ollama", lambda *_, **__: '{"kind": "dependent"}')
+    assert rag.is_follow_up("왜 줄어들어?") is True
+
+
+def test_follow_up_failure_keeps_question_independent(monkeypatch):
+    def broken(*_, **__):
+        raise rag.LlmError("실패")
+
+    monkeypatch.setattr(rag, "ask_ollama", broken)
+
+    assert rag.is_follow_up("왜 줄어들어?") is False
+
+
+def test_rewrite_uses_llm_question(monkeypatch):
+    monkeypatch.setattr(
+        rag, "ask_ollama", lambda *_, **__: '{"question": "남조류가 독소를 만들어?"}'
+    )
+
+    assert rag.rewrite_question("그게 독소를 만들어?", [("남조류?", "세균")]) == (
+        "남조류가 독소를 만들어?"
+    )
+
+
+@pytest.mark.parametrize(
+    "output",
+    ['{"question": "산소 소비가 늘어 부족해집니다."}', "깨진 출력"],
+)
+def test_rewrite_keeps_original_when_output_is_not_a_question(monkeypatch, output):
+    monkeypatch.setattr(rag, "ask_ollama", lambda *_, **__: output)
+
+    assert rag.rewrite_question("왜 그래?", [("질문", "답")]) == "왜 그래?"

@@ -1,3 +1,6 @@
+from app.routers import chat as chat_router
+
+
 def ask(client, **body):
     return client.post("/api/chat", json=body)
 
@@ -74,3 +77,78 @@ def test_chat_empty_question(client):
 
 def test_chat_unknown_location(client):
     assert ask(client, question="전망", location="XXX").status_code == 404
+
+
+class FollowUpStub:
+    """연속 질문 경로가 어떤 값으로 답변을 부르는지 기록한다."""
+
+    def __init__(self, monkeypatch, follow_up=True, rewritten="대응은?"):
+        self.called = None
+        self.rewrites = 0
+        stub = self
+
+        def fake_rewrite(*_):
+            stub.rewrites += 1
+            return rewritten
+
+        def fake_build(_session, question, location, base, *_):
+            stub.called = (question, location, base)
+            raise chat_router.LlmError("여기서 멈춘다")
+
+        monkeypatch.setattr(chat_router.settings, "llm_provider", "ollama")
+        monkeypatch.setattr(chat_router, "is_follow_up", lambda *_: follow_up)
+        monkeypatch.setattr(chat_router, "rewrite_question", fake_rewrite)
+        monkeypatch.setattr(chat_router, "build_rag_answer", fake_build)
+
+
+PAST = {
+    "question": "칠서 전망은?",
+    "answer": "칠서 답변",
+    "location": "CS",
+    "base_date": "2023-06-12",
+}
+
+
+def test_follow_up_keeps_previous_site_and_date(client, monkeypatch):
+    stub = FollowUpStub(monkeypatch)
+
+    ask(client, question="그럼 대응은?", history=[PAST])
+
+    question, location, base = stub.called
+    assert question == "대응은?"
+    assert location.code == "CS"
+    assert base.isoformat() == "2023-06-12"
+
+
+def test_rewritten_date_does_not_replace_previous_base_date(client, monkeypatch):
+    stub = FollowUpStub(monkeypatch, rewritten="칠서의 2023-06-19 주 대응은?")
+
+    ask(client, question="그럼 대응은?", history=[PAST])
+
+    assert stub.called[2].isoformat() == "2023-06-12"
+
+
+def test_follow_up_with_new_site_uses_that_site(client, monkeypatch):
+    stub = FollowUpStub(monkeypatch)
+
+    ask(client, question="그럼 해평은?", history=[PAST])
+
+    assert stub.called[1].code == "HP"
+
+
+def test_independent_question_ignores_history(client, monkeypatch):
+    stub = FollowUpStub(monkeypatch, follow_up=False)
+
+    ask(client, question="DO가 뭐야?", history=[PAST])
+
+    assert stub.called == ("DO가 뭐야?", None, None)
+    assert stub.rewrites == 0
+
+
+def test_no_history_never_rewrites(client, monkeypatch):
+    stub = FollowUpStub(monkeypatch)
+
+    ask(client, question="그럼 대응은?")
+
+    assert stub.called == ("그럼 대응은?", None, None)
+    assert stub.rewrites == 0

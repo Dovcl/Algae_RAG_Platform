@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
-import type { ChatResponse } from '../api.ts'
+import type { ChatResponse, PastTurn } from '../api.ts'
 import type { FetchState } from './useFetch.ts'
 
 /** 질문 하나와 그 답. 답은 불러오는 중 / 오류 / 완료 중 하나다. */
@@ -37,6 +37,25 @@ export function lastVizSearch(turns: Turn[]): string {
     if (search) return search
   }
   return ''
+}
+
+const HISTORY_TURNS = 3
+const HISTORY_ANSWER_CHARS = 300
+
+/** 연속 질문에 함께 보낼 최근 대화. 실패한 답은 뺀다. */
+export function recentHistory(turns: Turn[]): PastTurn[] {
+  const history: PastTurn[] = []
+  for (const { question, result } of turns) {
+    if (result.status !== 'ok') continue
+    const { data } = result
+    history.push({
+      question,
+      answer: data.answer.slice(0, HISTORY_ANSWER_CHARS),
+      location: data.location,
+      base_date: data.current_status?.date ?? data.forecast_status?.input_until ?? null,
+    })
+  }
+  return history.slice(-HISTORY_TURNS)
 }
 
 let lastTurnId = 0

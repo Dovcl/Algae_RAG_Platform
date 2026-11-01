@@ -9,6 +9,7 @@ import {
   newTurnId,
   type ChatContext,
   type Turn,
+  recentHistory,
 } from '../lib/chat.ts'
 import { useFetch } from '../lib/useFetch.ts'
 import Answer from './chat/Answer.tsx'
@@ -45,7 +46,7 @@ function ChatPage() {
     const finish = (result: Turn['result']) =>
       setTurns((prev) => prev.map((turn) => (turn.id === id ? { ...turn, result } : turn)))
 
-    postChat(text, location, baseDate)
+    postChat(text, location, baseDate, recentHistory(turns))
       .then((data) => finish({ status: 'ok', data }))
       .catch((e: unknown) =>
         finish({ status: 'error', error: e instanceof Error ? e.message : String(e) }),
