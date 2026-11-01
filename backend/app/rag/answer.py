@@ -18,7 +18,13 @@ from app.ml.locations import LOCATIONS, RIVER_NAMES, Location
 from app.ml.observations import Observations
 from app.ml.predictor import Prediction, Predictor, classify_stage, to_cells
 from app.rag.mock import find_date
-from app.rag.retrieve import Hit, search_evidence
+from app.rag.retrieve import (
+    CRITERIA_TABLE,
+    Hit,
+    is_criteria_question,
+    search_evidence,
+    table_chunks,
+)
 
 SYSTEM = """너는 녹조 관리 담당자를 돕는 도우미다. 아래 규칙을 지켜 한국어로 답한다.
 - [관측], [예측], [문서 근거]에 있는 내용만 쓴다. 없는 수치, 기관, 조치를 만들지 않는다.
@@ -86,8 +92,49 @@ CONCEPT_WORDS = (
     "의미",
     "설명",
 )
+ZONES = ("상수원", "친수활동")
+# 표 6의 해제 기준. LLM이 단계별 해제 기준을 지어낸 적이 있어 코드가 쓴다
+RELEASE_CELLS = {"상수원": "1,000", "친수활동": "20,000"}
+# 구간·단계별 조치 표. LLM이 다른 기관의 조치를 섞은 적이 있어 표의 행을 그대로 쓴다
+ACTION_TABLES = {
+    ("상수원", "관심"): "표 7",
+    ("상수원", "경계"): "표 8",
+    ("상수원", "조류대발생"): "표 9",
+    ("상수원", "해제"): "표 10",
+    ("친수활동", "관심"): "표 11",
+    ("친수활동", "경계"): "표 12",
+    ("친수활동", "해제"): "표 13",
+}
+STAGE_TERMS = {
+    "조류대발생": ("조류대발생", "조류 대발생"),
+    "관심": ("관심",),
+    "경계": ("경계",),
+    "해제": ("해제",),
+}
+# 질문에 나오는 표현과 표의 관계 기관 이름에서 찾을 말
+ROLE_TERMS = {
+    "취수장": "취수장",
+    "정수장": "취수장",  # 표에서 취수장·정수장 관리자는 한 행이다
+    "수면관리자": "수면관리자",
+    "홍수통제소": "홍수통제소",
+    "수자원공사": "한국수자원공사",
+    "환경공단": "한국환경공단",
+    "환경청": "환경청장",
+    "물환경연구소": "물환경연구소",
+}
+ACTION_ROW = re.compile(r"단계: .+? \| 관계 기관: (.+?) \| 조치사항: (.+)")
+LAST_BRACKET = re.compile(r"\s*\([^()]*\)$")
 OFFICIAL_WORDS = ("단계", "경보", "기준", "조치", "구간", "발령", "해제", "대응")
 MIN_ANSWER_CHARS = 20
+MAX_ACTIONS = 5
+RETRY_REPEAT_PENALTY = 1.15
+ZONE_REMINDER = "\n\n[지시]\n상수원 구간과 친수활동 구간의 기준을 나눠 각각 답한다."
+EVIDENCE_MARK = re.compile(r"\s*\[E[^\]]*\]")
+EVIDENCE_LABEL = re.compile(r"\[?evidence_ids\]?\s*:?\s*", re.IGNORECASE)
+# 프롬프트를 어기고 answer에 붙은 조치 목록. 조치는 management_actions로 따로 받는다
+LEAKED_ACTIONS = re.compile(
+    r"\s*[\[*]*(?:management_actions|관리\s*조치(?:\s*요약)?)[\]*]*\s*:[\s\S]*$"
+)
 # 인용 번호는 "입니다 [1]."처럼 마침표 앞에도, "입니다. [1]"처럼 뒤에도 온다
 SENTENCE = re.compile(r".+?다(?:\s*\[\d+\])*\.(?:\s*\[\d+\])*(?=\s|$)|.+$")
 
@@ -219,7 +266,7 @@ def evidence_section(hits: list[Hit]) -> str:
     return "\n\n".join(f"[E{n}] {hit.text}" for n, hit in enumerate(hits, start=1))
 
 
-def ask_ollama(system: str, user: str) -> str:
+def ask_ollama(system: str, user: str, **options: float) -> str:
     try:
         response = httpx2.post(
             f"{settings.ollama_base_url}/api/chat",
@@ -231,6 +278,7 @@ def ask_ollama(system: str, user: str) -> str:
                     "temperature": 0,
                     "num_ctx": settings.llm_num_ctx,
                     "num_predict": settings.llm_num_predict,
+                    **options,
                 },
                 "messages": [
                     {"role": "system", "content": system},
@@ -255,10 +303,20 @@ def parse_output(raw: str) -> LlmOutput:
     return output
 
 
+def generate(system: str, user: str) -> tuple[str, LlmOutput]:
+    """출력이 잘리면 반복 억제를 켜고 한 번 더 부른다. 표의 숫자가 바뀔 수 있어 평소에는 켜지 않는다."""
+    raw = ask_ollama(system, user)
+    try:
+        return raw, parse_output(raw)
+    except LlmError:
+        raw = ask_ollama(system, user, repeat_penalty=RETRY_REPEAT_PENALTY)
+        return raw, parse_output(raw)
+
+
 def concept_answer(question: str) -> RagAnswer:
     """문서와 자료 없이 일반 지식으로 답한다. 출처가 없음을 limitations로 밝힌다."""
-    raw = ask_ollama(CONCEPT_SYSTEM, question)
-    text = re.sub(r"\s*\[E?\d+\]", "", parse_output(raw).answer)
+    raw, output = generate(CONCEPT_SYSTEM, question)
+    text = re.sub(r"\s*\[E?\d+\]", "", output.answer)
     return RagAnswer(
         location=None,
         base_date=None,
@@ -274,6 +332,105 @@ def concept_answer(question: str) -> RagAnswer:
             {"system": CONCEPT_SYSTEM, "user": question}, ensure_ascii=False
         ),
         raw_output=raw,
+    )
+
+
+def release_answer(session: Session, question: str) -> RagAnswer | None:
+    """해제 기준 질문에 표 6의 값으로 답한다. 표가 적재되어 있지 않으면 None을 돌려준다."""
+    asked = [zone for zone in ZONES if zone in question] or list(ZONES)
+    hits = [
+        hit
+        for zone in asked
+        for hit in table_chunks(session, CRITERIA_TABLE)
+        if f"구간: {zone}구간" in hit.text
+    ]
+    if len(hits) != len(asked):
+        return None
+    lines = [
+        f"- {zone} 구간: 2회 연속 채취 시 남조류 세포수가 "
+        f"{RELEASE_CELLS[zone]} 세포/mL 미만인 경우 [{number}]"
+        for number, zone in enumerate(asked, start=1)
+    ]
+    text = "\n".join(lines) + (
+        "\n\n표 6의 해제 기준은 구간마다 하나이며 단계별로 따로 정하지 않습니다. "
+        "발령주체는 기준에 도달해도 강우 예보 등 기상상황을 고려해 해제하지 않을 수 있습니다."
+    )
+    return RagAnswer(
+        location=None,
+        base_date=None,
+        observed=None,
+        forecast=None,
+        stage=None,
+        actions=[],
+        evidence=hits,
+        evidence_ids=[f"E{number}" for number in range(1, len(hits) + 1)],
+        limitations="",
+        answer=text,
+        prompt=json.dumps(
+            {"rule": "표 6 해제 기준", "user": question}, ensure_ascii=False
+        ),
+        raw_output="",
+    )
+
+
+def action_target(question: str) -> tuple[str, str, str] | None:
+    """조치를 묻는 질문의 (표 번호, 단계, 기관 표현). 하나로 정해지지 않으면 None이다."""
+    stages = [
+        stage
+        for stage, terms in STAGE_TERMS.items()
+        if any(term in question for term in terms)
+    ]
+    roles = {term for word, term in ROLE_TERMS.items() if word in question}
+    if len(stages) != 1 or len(roles) != 1 or is_criteria_question(question):
+        return None
+    zone = "친수활동" if "친수활동" in question else "상수원"
+    table = ACTION_TABLES.get((zone, stages[0]))
+    return (table, stages[0], roles.pop()) if table else None
+
+
+def action_answer(session: Session, question: str) -> RagAnswer | None:
+    """단계와 기관을 묻는 질문에 조치 표의 행으로 답한다. 행이 없으면 None을 돌려준다."""
+    target = action_target(question)
+    if target is None:
+        return None
+    table, stage, role = target
+    evidence: list[Hit] = []
+    role_name = None
+    actions: list[str] = []
+    for hit in table_chunks(session, table):
+        for line in hit.text.splitlines():
+            row = ACTION_ROW.fullmatch(line)
+            if row is None or role not in LAST_BRACKET.sub("", row[1]):
+                continue
+            role_name = LAST_BRACKET.sub("", row[1])
+            actions += [
+                part.strip()
+                for part in re.split(r"(?:^|\s)\d\)\s*", row[2])
+                if part.strip()
+            ]
+            if hit not in evidence:
+                evidence.append(hit)
+    if not actions:
+        return None
+    zone = "친수활동" if "친수활동" in question else "상수원"
+    limitations = (
+        "" if zone in question else "구간이 없어 상수원 구간 기준으로 답했습니다."
+    )
+    return RagAnswer(
+        location=None,
+        base_date=None,
+        observed=None,
+        forecast=None,
+        stage=None,
+        actions=actions,
+        evidence=evidence,
+        evidence_ids=[f"E{number}" for number in range(1, len(evidence) + 1)],
+        limitations=limitations,
+        answer=f"{table}에 따른 {zone} 구간 {stage} 단계 {role_name}의 조치입니다. [1]",
+        prompt=json.dumps(
+            {"rule": f"{table} 조치", "user": question}, ensure_ascii=False
+        ),
+        raw_output="",
     )
 
 
@@ -328,6 +485,20 @@ def build_answer(
     if location is None and base is None and is_concept_question(question):
         return concept_answer(question)
 
+    if (
+        location is None
+        and base is None
+        and "해제" in question
+        and is_criteria_question(question)
+    ):
+        release = release_answer(session, question)
+        if release is not None:
+            return release
+    if location is None and base is None:
+        actions = action_answer(session, question)
+        if actions is not None:
+            return actions
+
     if location is not None and base is None:
         base = observations.weeks(location, None, None, 2)[0]
     if base is not None:
@@ -351,12 +522,22 @@ def build_answer(
         f"[예측]\n{forecast_section(forecast, stage)}\n\n"
         f"[문서 근거]\n{evidence_section(hits)}"
     )
-    raw = ask_ollama(SYSTEM, user)
-    output = parse_output(raw)
+    raw, output = generate(SYSTEM, user)
+    # 구간을 지정하지 않은 기준 질문에 한쪽 구간만 답하면 위험하므로 다시 묻는다
+    if (
+        is_criteria_question(question)
+        and not any(zone in question for zone in ZONES)
+        and not all(zone in output.answer for zone in ZONES)
+    ):
+        raw, output = generate(SYSTEM, user + ZONE_REMINDER)
 
     # 실제로 준 근거만 출처로 남긴다. 없는 번호는 limitations에 드러낸다
     known = {f"E{n}": hit for n, hit in enumerate(hits, start=1)}
-    used = [item for item in dict.fromkeys(output.evidence_ids) if item in known]
+    # evidence_ids를 비우고 본문에만 번호를 쓰는 경우가 있어 둘 다 본다
+    cited = [f"E{number}" for number in re.findall(r"\bE(\d+)\b", output.answer)]
+    used = [
+        item for item in dict.fromkeys(output.evidence_ids + cited) if item in known
+    ]
     unknown = [item for item in output.evidence_ids if item not in known]
     limitations = output.limitations
     if unknown:
@@ -370,8 +551,21 @@ def build_answer(
             "세포수 구간은 상수원 기준으로 표시했습니다."
         )
 
+    limitations = EVIDENCE_MARK.sub("", limitations)
+    if (
+        is_criteria_question(question)
+        and not any(zone in question for zone in ZONES)
+        and not all(zone in output.answer for zone in ZONES)
+    ):
+        limitations += (
+            " 이 답변은 한 구간만 다룹니다. 구간별 기준은 출처의 표를 확인하세요."
+        )
+    if len(output.management_actions) > MAX_ACTIONS:
+        limitations += f" 조치는 {MAX_ACTIONS}개까지만 표시했습니다. 전체 내용은 출처 문서를 확인하세요."
+
     # 화면의 출처 번호와 맞춘다. 쓰지 않은 근거 번호는 지운다
     text = re.sub(r"<br\s*/?>", "\n", output.answer).replace("\\n", "\n")
+    text = EVIDENCE_LABEL.sub("", text)  # 응답 필드 이름을 본문에 쓰는 경우
     # [E1, E2]처럼 묶어 쓴 인용을 낱개로 푼다
     text = re.sub(
         r"\[(E\d+(?:\s*,\s*E\d+)+)\]",
@@ -380,7 +574,12 @@ def build_answer(
     )
     for number, item in enumerate(used, start=1):
         text = text.replace(f"[{item}]", f"[{number}]")
-    text = re.sub(r"\s*\[E\d+\]", "", text)
+    text = EVIDENCE_MARK.sub("", text)
+    text = LEAKED_ACTIONS.sub("", text)
+    # 본문에 번호가 없는 근거는 끝에 붙여 출처 목록과 맞춘다
+    text = text.rstrip() + "".join(
+        f"[{number}]" for number in range(1, len(used) + 1) if f"[{number}]" not in text
+    )
     text = tidy_text(text)
 
     return RagAnswer(
@@ -391,8 +590,8 @@ def build_answer(
         stage=stage,
         # 화면이 번호를 매기므로 LLM이 붙인 번호는 뗀다
         actions=[
-            re.sub(r"^\s*\d+[.)]\s*", "", action)
-            for action in output.management_actions
+            re.sub(r"^\s*\d+[.)]\s*", "", EVIDENCE_MARK.sub("", action))
+            for action in output.management_actions[:MAX_ACTIONS]
         ],
         evidence=[known[item] for item in used],
         evidence_ids=used,

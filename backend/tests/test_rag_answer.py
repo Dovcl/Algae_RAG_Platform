@@ -30,8 +30,11 @@ def make_hit(number: int) -> Hit:
 def stubbed(monkeypatch):
     calls = {}
 
-    def fake_ollama(system, user):
+    def fake_ollama(system, user, **options):
         calls["user"] = user
+        calls.setdefault("options", []).append(options)
+        if "retry_output" in calls and len(calls["options"]) == 1:
+            return "잘린 출력"
         return json.dumps(calls["output"], ensure_ascii=False)
 
     monkeypatch.setattr(rag, "ask_ollama", fake_ollama)
@@ -67,7 +70,7 @@ def test_renumbers_citations_for_the_screen(stubbed):
         "limitations": "",
     }
 
-    assert run().answer == "근거에 따라 이렇게 정리해 답을 드립니다 [1] 추가 설명."
+    assert run().answer == "근거에 따라 이렇게 정리해 답을 드립니다 [1] 추가 설명 [2]."
 
 
 def test_splits_grouped_citations(stubbed):
@@ -79,6 +82,20 @@ def test_splits_grouped_citations(stubbed):
     }
 
     assert run().answer.endswith("[1][2].")
+
+
+def test_removes_leaked_field_name(stubbed):
+    stubbed["output"] = {
+        "answer": "근거에 따라 이렇게 정리해 답을 드립니다.\n\n[evidence_ids]: [E1], [E2]",
+        "management_actions": [],
+        "evidence_ids": ["E1", "E2"],
+        "limitations": "",
+    }
+
+    answer = run().answer
+
+    assert "evidence_ids" not in answer
+    assert answer.endswith("[1][2]")
 
 
 def test_removes_html_line_breaks(stubbed):
@@ -199,6 +216,121 @@ def test_concept_question_skips_documents(stubbed, monkeypatch):
     assert result.limitations == ""
 
 
+def test_retries_with_repeat_penalty_when_output_is_cut(stubbed):
+    stubbed["retry_output"] = True
+    stubbed["output"] = {
+        "answer": "제공된 근거에 따라 정리한 충분히 긴 답변 문장입니다.",
+        "management_actions": [],
+        "evidence_ids": [],
+        "limitations": "",
+    }
+
+    run()
+
+    assert stubbed["options"] == [{}, {"repeat_penalty": rag.RETRY_REPEAT_PENALTY}]
+
+
+def test_uses_citations_written_only_in_text(stubbed):
+    stubbed["output"] = {
+        "answer": "근거에 따라 정리한 충분히 긴 답변 문장입니다 [E2].",
+        "management_actions": [],
+        "evidence_ids": [],
+        "limitations": "",
+    }
+
+    result = run()
+
+    assert result.evidence_ids == ["E2"]
+    assert result.answer.endswith("문장입니다 [1].")
+
+
+def test_adds_missing_citations_to_end(stubbed):
+    stubbed["output"] = {
+        "answer": "근거에 따라 정리한 충분히 긴 답변 문장입니다.",
+        "management_actions": [],
+        "evidence_ids": ["E1", "E2"],
+        "limitations": "",
+    }
+
+    assert run().answer.endswith("문장입니다.[1][2]")
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "management_actions",
+        "[management_actions]",
+        "**management_actions**",
+        "관리조치",
+    ],
+)
+def test_removes_actions_leaked_into_answer(stubbed, label):
+    stubbed["output"] = {
+        "answer": f"근거에 따라 정리한 충분히 긴 답변 문장입니다.\n\n{label}: 1. 지어낸 조치",
+        "management_actions": [],
+        "evidence_ids": [],
+        "limitations": "",
+    }
+
+    assert "지어낸" not in run().answer
+
+
+def test_asks_again_when_criteria_answer_has_one_zone(stubbed):
+    stubbed["output"] = {
+        "answer": "상수원 구간은 10,000 이상일 때 경계 단계입니다.",
+        "management_actions": [],
+        "evidence_ids": [],
+        "limitations": "",
+    }
+
+    rag.build_answer(
+        None, "얼마면 경계 단계야?", None, None, MockPredictor(), MockObservations()
+    )
+
+    assert stubbed["user"].endswith(rag.ZONE_REMINDER)
+
+
+def test_removes_evidence_marks_from_actions_and_limitations(stubbed):
+    stubbed["output"] = {
+        "answer": "근거에 따라 정리한 충분히 긴 답변 문장입니다.",
+        "management_actions": ["시료 채취 [E1]"],
+        "evidence_ids": [],
+        "limitations": "자료가 부족합니다 [E2, E3 참고].",
+    }
+
+    result = run()
+
+    assert result.actions == ["시료 채취"]
+    assert result.limitations == "자료가 부족합니다."
+
+
+def test_limits_actions_and_says_so(stubbed):
+    stubbed["output"] = {
+        "answer": "제공된 근거에 따라 정리한 충분히 긴 답변 문장입니다.",
+        "management_actions": [f"조치 {n}" for n in range(1, 8)],
+        "evidence_ids": [],
+        "limitations": "",
+    }
+
+    result = run()
+
+    assert len(result.actions) == rag.MAX_ACTIONS
+    assert "5개까지만" in result.limitations
+
+
+@pytest.mark.parametrize(
+    ("question", "expected"),
+    [
+        ("남조류가 얼마면 경계 단계야?", True),
+        ("경계 단계가 뭐야?", True),
+        ("경계 단계 조류 예측은 얼마야?", False),
+        ("클로로필-a가 뭐야?", False),
+    ],
+)
+def test_is_criteria_question_covers_value_questions(question, expected):
+    assert is_criteria_question(question) is expected
+
+
 def test_no_location_has_no_numbers(stubbed):
     stubbed["output"] = {
         "answer": "제공된 근거에 따라 정리한 충분히 긴 답변 문장입니다.",
@@ -231,7 +363,7 @@ def test_forecast_section_has_stage_range(stubbed):
 
 
 def test_bad_output_raises(stubbed, monkeypatch):
-    monkeypatch.setattr(rag, "ask_ollama", lambda *_: "형식이 틀린 답")
+    monkeypatch.setattr(rag, "ask_ollama", lambda *_, **__: "형식이 틀린 답")
 
     with pytest.raises(rag.LlmError):
         run()
@@ -335,3 +467,132 @@ def test_criteria_table_comes_first_without_duplicates(monkeypatch):
     hits = retrieve.search_evidence(None, "해제 기준은?", "해제 기준은?", 6)
 
     assert [hit.chunk_id for hit in hits] == ["c1", "c2", "c3"]
+
+
+def test_question_phrases_drop_particles():
+    phrases = retrieve.question_phrases("댐과 보의 방류량 조정은 어느 기관이?")
+
+    assert "방류량 조정" in phrases
+    assert "보 방류량" not in phrases  # 한 글자 단어는 표현이 되지 못한다
+
+
+def test_phrase_chunks_go_first_and_are_capped(monkeypatch):
+    hits = [make_hit(n) for n in range(1, 6)]
+    monkeypatch.setattr(retrieve, "search", lambda *_: hits[:2])
+    monkeypatch.setattr(retrieve, "phrase_chunks", lambda *_: hits[1:5])
+
+    found = retrieve.search_evidence(None, "방류량 조정은?", "방류량 조정은?", 6)
+
+    assert [hit.chunk_id for hit in found] == [
+        hit.chunk_id for hit in [hits[1], hits[2], hits[3], hits[0]]
+    ]
+
+
+def criteria_hits() -> list[Hit]:
+    return [
+        Hit(
+            chunk_id=f"c{zone}",
+            document_id="DOC02",
+            document="문서",
+            publisher="기관",
+            page=30,
+            pdf_page=34,
+            section="1.3.2",
+            table_id="표 6",
+            text=f"구간: {zone}구간 | 단계: 해제",
+            distance=0.0,
+        )
+        for zone in ("상수원", "친수활동")
+    ]
+
+
+def test_release_question_uses_table_values_without_llm(stubbed, monkeypatch):
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: criteria_hits())
+    monkeypatch.setattr(rag, "ask_ollama", pytest.fail)
+
+    result = rag.release_answer(None, "조류경보 해제 기준은?")
+
+    assert (
+        "상수원 구간: 2회 연속 채취 시 남조류 세포수가 1,000 세포/mL 미만"
+        in result.answer
+    )
+    assert (
+        "친수활동 구간: 2회 연속 채취 시 남조류 세포수가 20,000 세포/mL 미만"
+        in result.answer
+    )
+    assert "10,000" not in result.answer
+    assert len(result.evidence) == 2
+
+
+def test_release_question_keeps_asked_zone_only(monkeypatch):
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: criteria_hits())
+
+    result = rag.release_answer(None, "친수활동 구간 해제 기준은?")
+
+    assert "20,000" in result.answer
+    assert "상수원" not in result.answer
+    assert [hit.chunk_id for hit in result.evidence] == ["c친수활동"]
+
+
+def test_release_question_falls_back_without_table(monkeypatch):
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: [])
+
+    assert rag.release_answer(None, "조류경보 해제 기준은?") is None
+
+
+def action_hit() -> Hit:
+    rows = [
+        "단계: 경계 | 관계 기관: 4대강 물환경연구소장 (보건환경연구원장 또는 수면관리자) | 조치사항: 1) 주 2회 시료 채취",
+        "단계: 경계 | 관계 기관: 수면관리자 (수면관리자) | 조치사항: 차단막 설치",
+        "단계: 경계 | 관계 기관: 취수장·정수장 관리자 (취수장·정수장 관리자) | 조치사항: 1) 취수구 이동 2) 정수처리 강화 3) 정수의 독소분석 실시",
+    ]
+    return Hit(
+        chunk_id="c8",
+        document_id="DOC02",
+        document="문서",
+        publisher="기관",
+        page=33,
+        pdf_page=37,
+        section="1.4.1.2",
+        table_id="표 8",
+        text="\n".join(["열: 단계 / 관계 기관 / 조치사항", *rows]),
+        distance=0.0,
+    )
+
+
+def test_action_answer_uses_only_the_asked_role(monkeypatch):
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: [action_hit()])
+
+    result = rag.action_answer(
+        None, "경계 단계에서 취수장과 정수장 관리자가 해야 할 일은?"
+    )
+
+    assert result.actions == ["취수구 이동", "정수처리 강화", "정수의 독소분석 실시"]
+    assert "상수원" in result.limitations
+
+
+def test_action_answer_ignores_role_in_brackets(monkeypatch):
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: [action_hit()])
+
+    result = rag.action_answer(None, "경계 단계에서 수면관리자는 뭘 해?")
+
+    assert result.actions == ["차단막 설치"]
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "정수장에서 지오스민이 20 ng/L를 넘으면 어떻게 대응하나?",
+        "경계 단계 조치는?",
+        "관심과 경계 단계에서 수면관리자는 뭘 해?",
+        "경계 단계 기준은 얼마야? 수면관리자 말고",
+    ],
+)
+def test_action_target_needs_one_stage_and_role(question):
+    assert rag.action_target(question) is None
+
+
+def test_action_answer_falls_back_when_row_is_missing(monkeypatch):
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: [])
+
+    assert rag.action_answer(None, "경계 단계에서 수면관리자는 뭘 해?") is None

@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     rag_top_k: int = 6
     llm_model: str = "exaone3.5:7.8b"
     llm_num_ctx: int = 8192
-    llm_num_predict: int = 1024  # 같은 항목을 끝없이 반복해도 제한 시간 전에 끊는다
+    llm_num_predict: int = 900  # 같은 항목을 끝없이 반복해도 제한 시간 전에 끊는다
     llm_timeout: float = 300
 
     @property

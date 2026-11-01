@@ -1,6 +1,8 @@
 """질문을 bge-m3로 임베딩해 컬렉션에서 가까운 청크를 찾는다. 코사인 거리 기준 정확 검색이다."""
 
+import re
 from dataclasses import dataclass
+from itertools import pairwise
 
 import httpx2
 from sqlalchemy import select
@@ -11,6 +13,10 @@ from app.db.models import Chunk, ChunkEmbedding, Collection, Document
 
 # 조류경보제 운영 매뉴얼의 구간별 발령·해제 기준표
 CRITERIA_TABLE = "표 6"
+STAGE_WORDS = ("관심 단계", "경계 단계", "조류대발생")
+PARTICLE = re.compile(r"(에서|으로|은|는|이|가|을|를|의|에|로|과|와|도|만)$")
+PHRASE_LIMIT = 4  # 이보다 많은 청크에 나오는 표현은 질문을 가려내지 못한다
+MAX_PHRASE_HITS = 3
 
 
 @dataclass(frozen=True)
@@ -94,22 +100,59 @@ def table_chunks(session: Session, table_id: str) -> list[Hit]:
     return [to_hit(chunk, document, 0.0) for chunk, document in rows]
 
 
+def question_phrases(question: str) -> list[str]:
+    """질문의 이어진 두 단어. 조사를 떼어 문서의 표현과 맞춘다."""
+    words = [PARTICLE.sub("", word.strip("?!.,")) for word in question.split()]
+    return [
+        f"{first} {second}"
+        for first, second in pairwise(words)
+        if len(first) >= 2 and len(second) >= 2
+    ]
+
+
+def phrase_chunks(session: Session, question: str) -> list[Hit]:
+    """질문의 표현이 그대로 있는 청크. 긴 표의 한 행은 벡터 검색에서 밀리기 쉽다."""
+    if settings.rag_collection is None:
+        return []
+    collection = ready_collection(session)
+    found: dict[str, Hit] = {}
+    for phrase in question_phrases(question):
+        rows = session.execute(
+            select(Chunk, Document)
+            .join(ChunkEmbedding, ChunkEmbedding.chunk_id == Chunk.chunk_id)
+            .join(Document, Document.document_id == Chunk.document_id)
+            .where(
+                ChunkEmbedding.collection_id == collection.collection_id,
+                Chunk.text.contains(phrase, autoescape=True),
+            )
+            .order_by(Chunk.chunk_id)
+            .limit(PHRASE_LIMIT + 1)
+        ).all()
+        if len(rows) <= PHRASE_LIMIT:
+            for chunk, document in rows:
+                found.setdefault(chunk.chunk_id, to_hit(chunk, document, 0.0))
+    return list(found.values())
+
+
 def is_criteria_question(question: str) -> bool:
     """조류경보 발령·해제 기준을 묻는가. 조류예측 단계 질문은 다른 표를 쓰므로 뺀다."""
     if "예측" in question:
         return False
-    if "기준" in question:
+    if any(word in question for word in ("기준", "얼마", "몇")):
         return any(word in question for word in ("발령", "해제", "경보", "단계"))
+    if any(word in question for word in ("뭐야", "뜻", "의미")):
+        return any(word in question for word in STAGE_WORDS)
     return "언제" in question and any(word in question for word in ("발령", "해제"))
 
 
 def search_evidence(
     session: Session, question: str, query: str, top_k: int
 ) -> list[Hit]:
-    """벡터 검색 결과에, 기준 질문이면 공식 기준표(표 6)를 앞에 넣는다."""
+    """벡터 검색 결과에, 공식 기준표(표 6)와 질문의 표현이 그대로 있는 청크를 앞에 넣는다."""
     hits = search(session, query, top_k)
-    if not is_criteria_question(question):
-        return hits
-    tables = table_chunks(session, CRITERIA_TABLE)
-    pinned = {hit.chunk_id for hit in tables}
-    return tables + [hit for hit in hits if hit.chunk_id not in pinned]
+    if is_criteria_question(question):
+        pinned = table_chunks(session, CRITERIA_TABLE)
+    else:
+        pinned = phrase_chunks(session, question)[:MAX_PHRASE_HITS]
+    front = {hit.chunk_id: hit for hit in pinned}
+    return [*front.values(), *(hit for hit in hits if hit.chunk_id not in front)]
