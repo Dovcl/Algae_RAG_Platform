@@ -799,5 +799,10 @@
       }
     ],
     "review": "설명이라는 단어가 있어도 공식 기준·조치이면 concept 경로로 빠지지 않아야 함"
-  }
+  },
+  {"id": "P01", "question": "클로로필-a 농도가 증가하면 어떻게 돼?", "route": "concept", "category": "일반 원리", "review": "일반 원리로 답하고 기준값, 기관, 조치를 만들지 않는지 확인"},
+  {"id": "P02", "question": "수온이 높아지면 남조류는 어떻게 돼?", "route": "concept", "category": "일반 원리", "review": "일반 원리로 답하고 기준값, 기관, 조치를 만들지 않는지 확인"},
+  {"id": "P03", "question": "왜 여름에 녹조가 많이 생겨?", "route": "concept", "category": "일반 원리", "review": "일반 원리로 답하고 기준값, 기관, 조치를 만들지 않는지 확인"},
+  {"id": "P04", "question": "클로로필-a 농도가 증가하면 어떻게 돼?", "location": "CS", "base_date": "2023-06-12", "route": "concept", "category": "일반 원리", "review": "지점이 골라져 있어도 일반 원리로 답하는지 확인"},
+  {"id": "P05", "question": "활성탄을 더 넣으면 어떻게 돼?", "route": "document", "category": "일반 원리 경계", "review": "정수 처리 질문은 문서로 답하는지 확인"}
 ]

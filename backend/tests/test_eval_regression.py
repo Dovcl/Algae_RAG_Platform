@@ -307,7 +307,7 @@ def test_fixed_suite_is_valid_and_keeps_all_search_development_questions():
     validate_cases(cases)
     dev = json.loads((root / "corpus/dev_questions.json").read_text())
     assert {q["question"] for q in dev} <= {q["question"] for q in cases}
-    assert len(cases) == 42
+    assert len(cases) == 47
     assert digest(cases) == digest(json.loads(json.dumps(cases)))
 
 

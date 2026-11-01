@@ -744,3 +744,25 @@ def test_bracket_actions_without_colon_are_removed(stubbed):
     }
 
     assert "management_actions" not in run().answer
+
+
+@pytest.mark.parametrize(
+    ("question", "expected"),
+    [
+        ("클로로필-a 농도가 증가하면 어떻게 돼?", True),
+        ("왜 여름에 녹조가 많이 생겨?", True),
+        ("수온이 높아지면 남조류는 어떻게 돼?", True),
+        ("경계 단계면 어떻게 돼?", False),
+        ("활성탄을 더 넣으면 어떻게 돼?", False),
+        ("2024년 녹조가 많았던 원인은?", False),
+        ("칠서는 왜 세포수가 늘었어?", False),
+        ("낙동강에서 녹조가 많은 이유는?", False),
+    ],
+)
+def test_general_principle_questions(question, expected):
+    assert rag.is_concept_question(question) is expected
+
+
+def test_what_if_question_ignores_selected_site():
+    assert rag.is_what_if_question("클로로필-a 농도가 증가하면 어떻게 돼?") is True
+    assert rag.is_what_if_question("왜 늘었어?") is False
