@@ -36,8 +36,9 @@ export function fetchLocations() {
   return getJson<LocationInfo[]>('/api/locations')
 }
 
-export function fetchTimeseries(location: string, weeks: number) {
+export function fetchTimeseries(location: string, weeks: number, end: string | null) {
   const params = new URLSearchParams({ location, weeks: String(weeks) })
+  if (end) params.set('end', end)
   return getJson<TimeseriesResponse>(`/api/timeseries?${params}`)
 }
 

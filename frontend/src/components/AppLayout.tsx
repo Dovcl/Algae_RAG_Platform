@@ -1,7 +1,7 @@
 import { Droplets } from 'lucide-react'
 import { useState } from 'react'
 import { Outlet } from 'react-router'
-import type { ChatContext, Turn } from '../lib/chat.ts'
+import { lastVizSearch, type ChatContext, type Turn } from '../lib/chat.ts'
 import BackendStatus from './BackendStatus.tsx'
 import Sidebar from './Sidebar.tsx'
 
@@ -22,7 +22,7 @@ function AppLayout() {
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <Sidebar onNewChat={() => setTurns([])} />
+        <Sidebar onNewChat={() => setTurns([])} vizSearch={lastVizSearch(turns)} />
         <main className="min-w-0 flex-1 overflow-y-auto">
           <Outlet context={{ turns, setTurns } satisfies ChatContext} />
         </main>

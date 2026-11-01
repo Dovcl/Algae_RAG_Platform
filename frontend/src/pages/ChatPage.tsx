@@ -3,7 +3,13 @@ import { useEffect, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router'
 import { fetchLocations, postChat } from '../api.ts'
 import LocationSelect from '../components/LocationSelect.tsx'
-import { newTurnId, type ChatContext, type Turn } from '../lib/chat.ts'
+import {
+  FIRST_BASE_DATE,
+  LAST_BASE_DATE,
+  newTurnId,
+  type ChatContext,
+  type Turn,
+} from '../lib/chat.ts'
 import { useFetch } from '../lib/useFetch.ts'
 import Answer from './chat/Answer.tsx'
 
@@ -13,10 +19,6 @@ const SUGGESTIONS = [
   '경계 단계에서 취수장과 정수장 관리자는 무엇을 해야 해?',
   '친수활동 구간 경계 단계에서 낚시는 어떻게 관리해?',
 ]
-
-// 저장 예측이 있는 기준일 범위 (대상 주 2023-01-16 ~ 12-25)
-const FIRST_BASE_DATE = '2023-01-09'
-const LAST_BASE_DATE = '2023-12-18'
 
 function ChatPage() {
   const { turns, setTurns } = useOutletContext<ChatContext>()

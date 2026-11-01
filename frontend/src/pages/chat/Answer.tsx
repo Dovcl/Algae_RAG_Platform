@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import type { ChatResponse } from '../../api.ts'
 import MockBadge from '../../components/MockBadge.tsx'
 import StageBadge from '../../components/StageBadge.tsx'
+import { vizSearch } from '../../lib/chat.ts'
 import EvidenceCards from './EvidenceCards.tsx'
 
 type AnswerProps = {
@@ -108,7 +109,7 @@ function Answer({ data }: AnswerProps) {
       {data.location && (
         <div>
           <Link
-            to={`/viz/timeseries?location=${data.location}`}
+            to={`/viz/timeseries${vizSearch(data)}`}
             className="inline-flex h-8 items-center gap-1.5 rounded border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
           >
             <ChartLine className="size-3.5" />

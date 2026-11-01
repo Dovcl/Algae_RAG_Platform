@@ -8,9 +8,10 @@ const menu = [
 
 type SidebarProps = {
   onNewChat: () => void
+  vizSearch: string
 }
 
-function Sidebar({ onNewChat }: SidebarProps) {
+function Sidebar({ onNewChat, vizSearch }: SidebarProps) {
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white p-3">
       <Link
@@ -25,7 +26,7 @@ function Sidebar({ onNewChat }: SidebarProps) {
         {menu.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
-            to={to}
+            to={to === '/viz' ? `/viz${vizSearch}` : to}
             className={({ isActive }) =>
               `flex items-center gap-2 rounded px-3 py-2 text-sm ${
                 isActive
