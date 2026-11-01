@@ -18,8 +18,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "corpus" / "manifest.json"
 CORRECTIONS = ROOT / "corpus" / "parsed_corrections.json"
+AUTO_REVIEW = ROOT / "corpus" / "auto_review.json"
 RAW = ROOT / "data" / "parser_eval" / "upstage-enhanced"
-PARSE_RUN_ID = "upstage-enhanced-v4"
+PARSE_RUN_ID = "upstage-enhanced-v5"
 MAX_HEADING = 80
 SKIP = {"header", "footer"}
 PRIVATE_USE = re.compile(r"[\ue000-\uf8ff]")
@@ -189,9 +190,20 @@ def apply_corrections(blocks: list[dict], corrections: list[dict]) -> None:
         block["review"] = {"status": "corrected", "reason": fix["reason"]}
 
 
+def apply_auto_review(blocks: list[dict], auto: dict) -> None:
+    """사람이 보지 않은 쪽에 자동 검수 등급을 달고 의심 블록을 뺀다."""
+    dropped = {item["block_id"] for item in auto["dropped"]}
+    pages = set(auto["pages"])
+    blocks[:] = [block for block in blocks if block["block_id"] not in dropped]
+    for block in blocks:
+        if block["pdf_page_start"] in pages:
+            block["review"] = {"status": "auto"}
+
+
 def main() -> None:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     review = json.loads(CORRECTIONS.read_text(encoding="utf-8"))
+    auto = json.loads(AUTO_REVIEW.read_text(encoding="utf-8"))
     out_dir = ROOT / "data" / "parsed" / PARSE_RUN_ID / review["status"]
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -204,6 +216,8 @@ def main() -> None:
                 new, section = page_blocks(doc["document_id"], page, printed, section)
                 blocks.extend(new)
         apply_corrections(blocks, review["corrections"])
+        if doc["document_id"] == auto["document_id"]:
+            apply_auto_review(blocks, auto)
         for block in blocks:
             if review["status"] == "reviewed" and block["review"]["status"] == "raw":
                 block["review"] = {"status": "reviewed"}

@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "corpus" / "manifest.json"
-PARSE_RUN_ID = "upstage-enhanced-v4"
+PARSE_RUN_ID = "upstage-enhanced-v5"
 CHUNKING_VERSION = "chunk-v4"
 MAX_CHARS = 900
 MAX_TABLE_CHARS = 1500

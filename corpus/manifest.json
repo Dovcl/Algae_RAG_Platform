@@ -9,7 +9,7 @@
       "file": "data/docs/DOC01_2024_algae_annual_report_2025-12.pdf",
       "sha256": "1d1f3f222ee58c2ebe05a55a68bbb0970fac01bfcfa0d7648ab94f0ee2bfa9ec",
       "source_url": null,
-      "page_ranges": [{"pdf_start": 164, "pdf_end": 168, "printed_offset": 20}, {"pdf_start": 174, "pdf_end": 174, "printed_offset": 20}, {"pdf_start": 181, "pdf_end": 183, "printed_offset": 20}],
+      "page_ranges": [{"pdf_start": 163, "pdf_end": 186, "printed_offset": 20}, {"pdf_start": 260, "pdf_end": 302, "printed_offset": 20}],
       "strip_lines": ["^⦁?\\d+⦁?$"]
     },
     {
