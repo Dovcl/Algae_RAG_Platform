@@ -41,8 +41,9 @@ SYSTEM = """너는 녹조 관리 담당자를 돕는 도우미다. 아래 규칙
 
 CONCEPT_SYSTEM = """너는 녹조 용어를 설명하는 도우미다. 질문한 개념의 뜻을 일반 지식으로 두세 문장 설명한다.
 - 지점 값, 공식 기준 수치, 기관, 조치는 쓰지 않는다. 근거 번호를 붙이지 않는다.
-- answer에만 설명을 쓰고 management_actions와 evidence_ids는 비운다."""
-CONCEPT_NOTE = "일반적인 설명이며 문서 근거가 아닙니다."
+- answer에만 설명을 쓰고 management_actions와 evidence_ids는 비운다.
+- 남조류는 광합성을 하는 세균(남세균)이며 녹조류와 다른 생물이다.
+- 예측 중앙값은 모델이 내놓는 예측 분포의 가운데 값(50% 분위수)으로, 실제 값이 이보다 낮을 확률과 높을 확률이 같다고 보는 값이다."""
 
 
 # 모델 단계의 상수원 구간 세포수. 기준은 DEV_PLAN.md 5장, 표 3-1-7
@@ -74,7 +75,17 @@ COLUMN_LABELS = {
     "Forecast": "예보 기온",
 }
 # 뜻을 묻는 표현. 공식 기준·조치와 관련된 말이 있으면 문서로 답해야 하므로 뺀다
-CONCEPT_WORDS = ("뜻", "뭐야", "뭐예요", "뭔가요", "무엇인가", "무엇인지", "의미")
+CONCEPT_WORDS = (
+    "뜻",
+    "뭐야",
+    "뭐예요",
+    "뭔가요",
+    "뭔지",
+    "무엇인가",
+    "무엇인지",
+    "의미",
+    "설명",
+)
 OFFICIAL_WORDS = ("단계", "경보", "기준", "조치", "구간", "발령", "해제", "대응")
 MIN_ANSWER_CHARS = 20
 # 인용 번호는 "입니다 [1]."처럼 마침표 앞에도, "입니다. [1]"처럼 뒤에도 온다
@@ -257,7 +268,7 @@ def concept_answer(question: str) -> RagAnswer:
         actions=[],
         evidence=[],
         evidence_ids=[],
-        limitations=CONCEPT_NOTE,
+        limitations="",
         answer=tidy_text(text),
         prompt=json.dumps(
             {"system": CONCEPT_SYSTEM, "user": question}, ensure_ascii=False
@@ -378,7 +389,11 @@ def build_answer(
         observed=observed,
         forecast=forecast,
         stage=stage,
-        actions=output.management_actions,
+        # 화면이 번호를 매기므로 LLM이 붙인 번호는 뗀다
+        actions=[
+            re.sub(r"^\s*\d+[.)]\s*", "", action)
+            for action in output.management_actions
+        ],
         evidence=[known[item] for item in used],
         evidence_ids=used,
         limitations=limitations,

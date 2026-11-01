@@ -110,6 +110,17 @@ def test_status_and_llm_text_are_separate_paragraphs(stubbed):
     ]
 
 
+def test_removes_number_prefix_from_actions(stubbed):
+    stubbed["output"] = {
+        "answer": "제공된 근거에 따라 정리한 충분히 긴 답변 문장입니다.",
+        "management_actions": ["1) 시료 채취", "2. 정수 처리 강화"],
+        "evidence_ids": [],
+        "limitations": "",
+    }
+
+    assert run().actions == ["시료 채취", "정수 처리 강화"]
+
+
 def test_cleans_bold_and_inline_numbering(stubbed):
     stubbed["output"] = {
         "answer": "**상수원 구간** 대응입니다: 1) 차단막을 설치합니다. 2) 정수를 강화합니다.",
@@ -156,6 +167,7 @@ def test_tidy_text_removes_comma_left_by_dropped_citation():
     [
         ("예측 중앙값은 무슨 뜻이야?", True),
         ("클로로필-a가 뭐야?", True),
+        ("예측 중앙값은 뭔지 설명해줘", True),
         ("경계 단계가 뭐야?", False),
         ("조류경보 해제 기준은 무엇인가?", False),
         ("취수장은 뭘 해야 해?", False),
@@ -184,7 +196,7 @@ def test_concept_question_skips_documents(stubbed, monkeypatch):
     assert result.answer == "중앙값은 값을 크기순으로 놓았을 때 가운데 값입니다."
     assert result.actions == []
     assert result.evidence == []
-    assert result.limitations == rag.CONCEPT_NOTE
+    assert result.limitations == ""
 
 
 def test_no_location_has_no_numbers(stubbed):

@@ -36,18 +36,22 @@ function AnswerLine({ line }: { line: string }) {
 
 function Answer({ data }: AnswerProps) {
   const isMock = data.llm === 'mock' || data.predict_backend === 'mock'
+  const hasNumbers = data.current_status !== null || data.forecast_status !== null
+  const hasHeader = data.location !== null || data.risk_level !== null || isMock
 
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
-      <div className="flex items-center gap-2">
-        {data.location && (
-          <span className="text-sm font-semibold text-slate-900">{data.location}</span>
-        )}
-        {data.risk_level !== null && <StageBadge stage={data.risk_level} />}
-        {isMock && <MockBadge />}
-      </div>
+      {hasHeader && (
+        <div className="flex items-center gap-2">
+          {data.location && (
+            <span className="text-sm font-semibold text-slate-900">{data.location}</span>
+          )}
+          {data.risk_level !== null && <StageBadge stage={data.risk_level} />}
+          {isMock && <MockBadge />}
+        </div>
+      )}
 
-      <EvidenceCards data={data} />
+      {hasNumbers && <EvidenceCards data={data} />}
 
       <div className="flex flex-col gap-3 text-[15px] leading-7 text-slate-800">
         {data.answer.split(/\n{2,}/).map((paragraph, index) => (
@@ -89,10 +93,12 @@ function Answer({ data }: AnswerProps) {
             {data.evidence.map((item, index) => (
               <li key={item.id} className="flex items-baseline gap-3 px-3 py-2 text-sm">
                 <span className="text-xs font-semibold text-guideline">[{index + 1}]</span>
-                <span className="min-w-0 flex-1 text-slate-800">{item.document}</span>
-                <span className="text-xs text-slate-500">
-                  {item.publisher} · p.{item.page} · {item.section}
-                </span>
+                <div className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-3">
+                  <span className="text-slate-800">{item.document}</span>
+                  <span className="text-xs text-slate-500">
+                    {item.publisher} · p.{item.page} · {item.section}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>
