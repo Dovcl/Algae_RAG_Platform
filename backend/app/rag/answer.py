@@ -81,38 +81,26 @@ COLUMN_LABELS = {
     "Temp": "기온",
     "Forecast": "예보 기온",
 }
-# 뜻을 묻는 표현. 공식 기준·조치와 관련된 말이 있으면 문서로 답해야 하므로 뺀다
-CONCEPT_WORDS = (
-    "뜻",
-    "뭐야",
-    "뭐예요",
-    "뭔가요",
-    "뭔지",
-    "무엇인가",
-    "무엇인지",
-    "의미",
-    "설명",
-    "왜",
-    "이유",
-    "원인",
-    "영향",
-    "어떻게 되",
-    "어떻게 돼",
-)
-# 조건을 가정해 현상을 묻는 표현. 지점이 골라져 있어도 일반 원리로 답한다
-WHAT_IF_WORDS = (
-    "증가하면",
-    "감소하면",
-    "높아지면",
-    "낮아지면",
-    "많아지면",
-    "줄어들면",
-    "올라가면",
-    "내려가면",
-)
 # 일반 지식이 아니라 문서로 답해야 하는 정수 처리 표현
 PROCESS_WORDS = ("정수", "취수", "활성탄", "오존", "염소", "응집", "여과")
+# 지점이 골라져 있을 때 그 지점의 자료를 묻는 표현
+SITE_CUES = ("지금", "현재", "이번", "다음 주", "위험", "늘었", "줄었", "세포수")
 YEAR = re.compile(r"\d{4}\s*년")
+ROUTE_SYSTEM = """질문을 분류한다. 녹조 관리 챗봇에 들어온 질문이다.
+- general: 과학 개념, 용어 뜻, 자연 현상의 원리처럼 일반 지식으로 답할 수 있는 질문
+- document: 공식 기준, 제도, 기관의 역할, 절차, 측정·분석 방법, 발표 주기, 대응 조치처럼 정해진 문서를 봐야 답할 수 있는 질문
+애매하면 document로 고른다."""
+ROUTE_SITE_SYSTEM = """질문을 분류한다. 녹조 관리 챗봇에 들어온 질문이고, 사용자가 지점 하나를 골라 둔 상태다.
+- general: 과학 개념, 용어 뜻, 자연 현상의 원리처럼 지점과 상관없이 일반 지식으로 답할 수 있는 질문
+- document: 공식 기준, 제도, 기관의 역할, 절차, 측정·분석 방법, 발표 주기, 대응 조치처럼 정해진 문서를 봐야 답할 수 있는 질문
+- site: 골라 둔 지점의 현재 값, 변화, 전망, 상황을 묻는 질문
+애매하면 site로 고른다."""
+ROUTE_SCHEMA = {
+    "type": "object",
+    "properties": {"route": {"enum": ["general", "document", "site"]}},
+    "required": ["route"],
+}
+ROUTE_MAX_TOKENS = 20
 ZONES = ("상수원", "친수활동")
 # 표 6의 행. LLM이 없는 해제 기준을 지어내거나 상한을 빠뜨린 적이 있어 코드가 쓴다
 CRITERIA_ROW = re.compile(r"구간: (.+?)구간 \| 단계: (.+?) \| 발령·해제 기준: (.+)")
@@ -151,6 +139,10 @@ FORECAST_ROW = re.compile(
 FORECAST_WORDS = ("세포수", "구간", "기준", "얼마", "몇")
 # 지점 답변의 수치 문장은 코드가 붙인다. LLM이 다시 쓰면 값이나 구간을 틀리게 해석한다
 RESTATED = re.compile(r"\d{1,3}(?:,\d{3})+|\d+\s*cells/mL|경계 단계에 근접|비슷한 수준")
+# 맨 앞 번호. "2회 이상"처럼 내용인 숫자는 남긴다
+ACTION_NUMBER = re.compile(
+    r"^\s*\d+(?:[.)]\s*|(?=[가-힣])(?![회개단차주일시명곳년월]))"
+)
 LIMITATION_JUNK = re.compile(r"<|`|\{|->")
 ACTION_ROW = re.compile(r"단계: .+? \| 관계 기관: (.+?) \| 조치사항: (.+)")
 LAST_BRACKET = re.compile(r"\s*\([^()]*\)$")
@@ -163,7 +155,7 @@ EVIDENCE_MARK = re.compile(r"\s*\[E[^\]]*\]")
 EVIDENCE_LABEL = re.compile(r"\[?evidence_ids\]?\s*:?\s*", re.IGNORECASE)
 # 프롬프트를 어기고 answer에 붙은 조치 목록. 조치는 management_actions로 따로 받는다
 LEAKED_ACTIONS = re.compile(
-    r"\s*(?:\[management_actions\]|[\[*]*(?:management_actions|관리\s*조치(?:\s*요약)?)[\]*]*\s*:)[\s\S]*$"
+    r"\s*(?:\[management_actions\]|[\[*]*(?:management_actions|관리\s*조치(?:\s*(?:요약|예시))?)[\]*]*\s*:)[\s\S]*$"
 )
 # 인용 번호는 "입니다 [1]."처럼 마침표 앞에도, "입니다. [1]"처럼 뒤에도 온다
 SENTENCE = re.compile(r".+?다(?:\s*\[\d+\])*\.(?:\s*\[\d+\])*(?=\s|$)|.+$")
@@ -210,25 +202,36 @@ def site_request(question: str) -> str | None:
     return "관측값과 예측값은 지점별로 있습니다. 어느 지점인지 알려 주세요."
 
 
-def names_place(question: str) -> bool:
-    return any(loc.name in question for loc in LOCATIONS.values()) or any(
-        name in question for name in RIVER_NAMES.values()
+def needs_document(question: str) -> bool:
+    """공식 사항이나 특정 지점·연도를 묻는가. 이런 질문은 LLM 분류와 상관없이 문서로 답한다."""
+    words = (*OFFICIAL_WORDS, *PROCESS_WORDS, *ROLE_TERMS)
+    return (
+        any(word in question for word in words)
+        or YEAR.search(question) is not None
+        or any(loc.name in question for loc in LOCATIONS.values())
+        or any(name in question for name in RIVER_NAMES.values())
     )
 
 
-def is_concept_question(question: str) -> bool:
-    """일반 뜻이나 원리를 묻는가. 이런 질문은 검색된 문서가 오히려 답을 흐린다."""
-    if any(word in question for word in (*OFFICIAL_WORDS, *PROCESS_WORDS)):
-        return False
-    if YEAR.search(question) or names_place(question):
-        return False
-    return any(word in question for word in (*CONCEPT_WORDS, *WHAT_IF_WORDS))
+def classify_route(question: str, has_site: bool) -> str:
+    """LLM으로 질문의 답이 어디서 나와야 하는지 고른다. 실패하면 문서로 답한다."""
+    system = ROUTE_SITE_SYSTEM if has_site else ROUTE_SYSTEM
+    try:
+        raw = ask_ollama(
+            system, question, schema=ROUTE_SCHEMA, num_predict=ROUTE_MAX_TOKENS
+        )
+        return json.loads(raw)["route"]
+    except (LlmError, ValueError, KeyError):
+        return "document"
 
 
-def is_what_if_question(question: str) -> bool:
-    return is_concept_question(question) and any(
-        word in question for word in WHAT_IF_WORDS
-    )
+def is_general_question(question: str, has_site: bool) -> bool:
+    """문서 없이 일반 지식으로 답해도 되는가. 단어 목록은 표현을 다 담지 못해 LLM이 판단한다."""
+    if needs_document(question):
+        return False
+    if has_site and any(cue in question for cue in SITE_CUES):
+        return False
+    return classify_route(question, has_site) == "general"
 
 
 def labeled(row: dict) -> dict:
@@ -310,14 +313,16 @@ def evidence_section(hits: list[Hit]) -> str:
     return "\n\n".join(f"[E{n}] {hit.text}" for n, hit in enumerate(hits, start=1))
 
 
-def ask_ollama(system: str, user: str, **options: float) -> str:
+def ask_ollama(
+    system: str, user: str, schema: dict | None = None, **options: float
+) -> str:
     try:
         response = httpx2.post(
             f"{settings.ollama_base_url}/api/chat",
             json={
                 "model": settings.llm_model,
                 "stream": False,
-                "format": LlmOutput.model_json_schema(),
+                "format": schema or LlmOutput.model_json_schema(),
                 "options": {
                     "temperature": 0,
                     "num_ctx": settings.llm_num_ctx,
@@ -604,7 +609,7 @@ def build_answer(
         )
 
     no_site = location is None and base is None
-    if (no_site and is_concept_question(question)) or is_what_if_question(question):
+    if is_general_question(question, not no_site):
         return concept_answer(question)
 
     if location is None and base is None:
@@ -713,7 +718,7 @@ def build_answer(
         stage=stage,
         # 화면이 번호를 매기므로 LLM이 붙인 번호는 뗀다
         actions=[
-            re.sub(r"^\s*\d+[.)]\s*", "", EVIDENCE_MARK.sub("", action))
+            ACTION_NUMBER.sub("", EVIDENCE_MARK.sub("", action))
             for action in output.management_actions[:MAX_ACTIONS]
         ],
         evidence=[known[item] for item in used],

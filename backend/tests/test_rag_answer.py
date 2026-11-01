@@ -40,6 +40,7 @@ def stubbed(monkeypatch):
     monkeypatch.setattr(rag, "ask_ollama", fake_ollama)
     monkeypatch.setattr(rag, "search_evidence", lambda *_: [make_hit(1), make_hit(2)])
     monkeypatch.setattr(rag, "table_chunks", lambda *_: [])
+    monkeypatch.setattr(rag, "classify_route", lambda *_: "document")
     return calls
 
 
@@ -183,19 +184,49 @@ def test_tidy_text_removes_comma_left_by_dropped_citation():
 @pytest.mark.parametrize(
     ("question", "expected"),
     [
-        ("예측 중앙값은 무슨 뜻이야?", True),
-        ("클로로필-a가 뭐야?", True),
-        ("예측 중앙값은 뭔지 설명해줘", True),
-        ("경계 단계가 뭐야?", False),
-        ("조류경보 해제 기준은 무엇인가?", False),
-        ("취수장은 뭘 해야 해?", False),
+        ("경계 단계가 뭐야?", True),
+        ("조류경보 해제 기준은 무엇인가?", True),
+        ("취수장은 뭘 해야 해?", True),
+        ("수면관리자는 어떻게 돼?", True),
+        ("활성탄을 더 넣으면 어떻게 돼?", True),
+        ("2024년 녹조가 많았던 원인은?", True),
+        ("칠서는 왜 세포수가 늘었어?", True),
+        ("낙동강에서 녹조가 많은 이유는?", True),
+        ("산소가 부족하다는건 수중에 DO가 줄어든다는건가?", False),
+        ("클로로필-a 농도가 증가하면 어떻게 돼?", False),
     ],
 )
-def test_is_concept_question(question, expected):
-    assert rag.is_concept_question(question) is expected
+def test_needs_document(question, expected):
+    assert rag.needs_document(question) is expected
+
+
+@pytest.mark.parametrize("question", ["지금 위험해?", "세포수가 왜 줄었지?"])
+def test_site_cues_skip_llm_when_site_is_selected(monkeypatch, question):
+    monkeypatch.setattr(rag, "classify_route", pytest.fail)
+
+    assert rag.is_general_question(question, has_site=True) is False
+
+
+def test_general_route_comes_from_llm(monkeypatch):
+    monkeypatch.setattr(rag, "classify_route", lambda *_: "general")
+    assert rag.is_general_question("DO가 뭐야?", has_site=True) is True
+
+    monkeypatch.setattr(rag, "classify_route", lambda *_: "site")
+    assert rag.is_general_question("왜 늘었어?", has_site=True) is False
+
+
+def test_classify_route_falls_back_to_document(monkeypatch):
+    def broken(*_, **__):
+        raise rag.LlmError("실패")
+
+    monkeypatch.setattr(rag, "ask_ollama", broken)
+
+    assert rag.classify_route("DO가 뭐야?", False) == "document"
 
 
 def test_concept_question_skips_documents(stubbed, monkeypatch):
+    monkeypatch.setattr(rag, "classify_route", lambda *_: "general")
+
     def fail(*_):
         raise AssertionError("개념 질문은 문서를 검색하지 않는다")
 
@@ -746,23 +777,24 @@ def test_bracket_actions_without_colon_are_removed(stubbed):
     assert "management_actions" not in run().answer
 
 
+def test_leaked_action_examples_are_removed(stubbed):
+    stubbed["output"] = {
+        "answer": "근거에 따라 정리한 충분히 긴 답변 문장입니다.\n\n[관리조치 예시]:\n1. 정기 점검",
+        "management_actions": [],
+        "evidence_ids": [],
+        "limitations": "",
+    }
+
+    assert "관리조치" not in run().answer
+
+
 @pytest.mark.parametrize(
-    ("question", "expected"),
+    ("action", "expected"),
     [
-        ("클로로필-a 농도가 증가하면 어떻게 돼?", True),
-        ("왜 여름에 녹조가 많이 생겨?", True),
-        ("수온이 높아지면 남조류는 어떻게 돼?", True),
-        ("경계 단계면 어떻게 돼?", False),
-        ("활성탄을 더 넣으면 어떻게 돼?", False),
-        ("2024년 녹조가 많았던 원인은?", False),
-        ("칠서는 왜 세포수가 늘었어?", False),
-        ("낙동강에서 녹조가 많은 이유는?", False),
+        ("1정기적인 수질 모니터링", "정기적인 수질 모니터링"),
+        ("1. 시료 채취", "시료 채취"),
+        ("2회 이상 시료 채취", "2회 이상 시료 채취"),
     ],
 )
-def test_general_principle_questions(question, expected):
-    assert rag.is_concept_question(question) is expected
-
-
-def test_what_if_question_ignores_selected_site():
-    assert rag.is_what_if_question("클로로필-a 농도가 증가하면 어떻게 돼?") is True
-    assert rag.is_what_if_question("왜 늘었어?") is False
+def test_action_number_keeps_real_counts(action, expected):
+    assert rag.ACTION_NUMBER.sub("", action) == expected
