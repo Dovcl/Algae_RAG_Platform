@@ -21,6 +21,7 @@ CORRECTIONS = ROOT / "corpus" / "parsed_corrections.json"
 RAW = ROOT / "data" / "parser_eval" / "upstage-enhanced"
 PARSE_RUN_ID = "upstage-enhanced-v1"
 SKIP = {"header", "footer"}
+PRIVATE_USE = re.compile(r"[\ue000-\uf8ff]")
 TABLE_ID = re.compile(r"(표\s*[\d-]+|그림\s*[\d-]+|<표\s*[\d-]+>|<그림\s*[\d-]+>)")
 
 
@@ -75,6 +76,7 @@ def plain(html: str) -> str:
     text = re.sub(r"</(p|li|h\d)>", "\n", text)
     text = re.sub(r"<[^>]+>", "", text)
     text = html_lib.unescape(text)
+    text = PRIVATE_USE.sub("", text)  # PDF의 글머리 기호가 깨진 글자로 들어온다
     return text.replace("$\\mu$", "μ").replace("$CO_{2}$", "CO2").strip()
 
 

@@ -6,8 +6,9 @@ import pytest
 from app.ml.locations import LOCATIONS
 from app.ml.mock import MockObservations, MockPredictor
 from app.rag import answer as rag
+from app.rag import retrieve
 from app.rag.mock import find_location
-from app.rag.retrieve import Hit
+from app.rag.retrieve import Hit, is_criteria_question
 
 
 def make_hit(number: int) -> Hit:
@@ -34,7 +35,7 @@ def stubbed(monkeypatch):
         return json.dumps(calls["output"], ensure_ascii=False)
 
     monkeypatch.setattr(rag, "ask_ollama", fake_ollama)
-    monkeypatch.setattr(rag, "search", lambda *_: [make_hit(1), make_hit(2)])
+    monkeypatch.setattr(rag, "search_evidence", lambda *_: [make_hit(1), make_hit(2)])
     return calls
 
 
@@ -67,6 +68,28 @@ def test_renumbers_citations_for_the_screen(stubbed):
     }
 
     assert run().answer == "근거에 따라 이렇게 정리해 답을 드립니다 [1] 추가 설명."
+
+
+def test_splits_grouped_citations(stubbed):
+    stubbed["output"] = {
+        "answer": "근거에 따라 이렇게 정리해 답을 드립니다 [E1, E2].",
+        "management_actions": [],
+        "evidence_ids": ["E1", "E2"],
+        "limitations": "",
+    }
+
+    assert run().answer.endswith("[1][2].")
+
+
+def test_removes_html_line_breaks(stubbed):
+    stubbed["output"] = {
+        "answer": "상수원 구간 기준을 먼저 정리합니다.<br><br>친수활동 구간 기준은 다릅니다.",
+        "management_actions": [],
+        "evidence_ids": [],
+        "limitations": "",
+    }
+
+    assert "<br>" not in run().answer
 
 
 def test_no_location_has_no_numbers(stubbed):
@@ -154,3 +177,54 @@ def test_unknown_zone_is_disclosed(stubbed):
     result = run(LOCATIONS["CGB"], date(2023, 6, 12))
 
     assert "구간(상수원/친수활동)은 확인되지 않아" in result.limitations
+
+
+def test_river_question_asks_for_site(monkeypatch):
+    monkeypatch.setattr(
+        rag, "ask_ollama", lambda *_: pytest.fail("LLM을 부르면 안 된다")
+    )
+
+    result = rag.build_answer(
+        None,
+        "낙동강 2023-06-12 녹조값 알려줘",
+        None,
+        date(2023, 6, 12),
+        MockPredictor(),
+        MockObservations(),
+    )
+
+    assert "칠서" in result.answer
+    assert "세종보" not in result.answer
+    assert result.evidence == []
+
+
+@pytest.mark.parametrize(
+    "question",
+    ["낙동강에서 경계 단계 발령 기준은?", "조류예측 정보는 얼마나 자주 발표되나?"],
+)
+def test_guideline_question_needs_no_site(question):
+    assert rag.site_request(question) is None
+
+
+@pytest.mark.parametrize(
+    ("question", "expected"),
+    [
+        ("조류경보 해제 기준은?", True),
+        ("경계 단계 발령 기준은?", True),
+        ("경보는 언제 해제돼?", True),
+        ("조류 예측 1단계 기준은?", False),
+        ("경계 단계에서 취수장은 뭘 해야 해?", False),
+    ],
+)
+def test_is_criteria_question(question, expected):
+    assert is_criteria_question(question) is expected
+
+
+def test_criteria_table_comes_first_without_duplicates(monkeypatch):
+    table = [make_hit(1), make_hit(2)]
+    monkeypatch.setattr(retrieve, "search", lambda *_: [make_hit(3), make_hit(1)])
+    monkeypatch.setattr(retrieve, "table_chunks", lambda *_: table)
+
+    hits = retrieve.search_evidence(None, "해제 기준은?", "해제 기준은?", 6)
+
+    assert [hit.chunk_id for hit in hits] == ["c1", "c2", "c3"]

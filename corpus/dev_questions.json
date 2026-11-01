@@ -220,5 +220,41 @@
     "pdf_page": 6
    }
   ]
+ },
+ {
+  "question": "조류경보 해제 기준은?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 34
+   }
+  ]
+ },
+ {
+  "question": "조류경보 발령 기준은?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 34
+   }
+  ]
+ },
+ {
+  "question": "남조류가 얼마면 경계 단계야?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 34
+   }
+  ]
+ },
+ {
+  "question": "경보는 언제 해제돼?",
+  "expected": [
+   {
+    "document_id": "DOC02",
+    "pdf_page": 34
+   }
+  ]
  }
 ]

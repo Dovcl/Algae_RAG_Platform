@@ -8,7 +8,7 @@ import sys
 
 from app.core.config import settings
 from app.db.session import SessionLocal
-from app.rag.retrieve import search
+from app.rag.retrieve import search_evidence
 
 
 def main() -> None:
@@ -17,7 +17,8 @@ def main() -> None:
     found = 0
     with SessionLocal() as session:
         for item in questions:
-            hits = search(session, item["question"], top)
+            question = item["question"]
+            hits = search_evidence(session, question, question, top)
             pages = [(hit.document_id, hit.pdf_page) for hit in hits]
             expected = {(e["document_id"], e["pdf_page"]) for e in item["expected"]}
             ranks = [n for n, page in enumerate(pages, start=1) if page in expected]

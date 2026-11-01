@@ -14,10 +14,11 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.ml.locations import Location
+from app.ml.locations import LOCATIONS, RIVER_NAMES, Location
 from app.ml.observations import Observations
 from app.ml.predictor import Prediction, Predictor, classify_stage, to_cells
-from app.rag.retrieve import Hit, search
+from app.rag.mock import find_date
+from app.rag.retrieve import Hit, search_evidence
 
 SYSTEM = """너는 녹조 관리 담당자를 돕는 도우미다. 아래 규칙을 지켜 한국어로 답한다.
 - [관측], [예측], [문서 근거]에 있는 내용만 쓴다. 없는 수치, 기관, 조치를 만들지 않는다.
@@ -25,6 +26,8 @@ SYSTEM = """너는 녹조 관리 담당자를 돕는 도우미다. 아래 규칙
 - 관측과 예측을 구분해 쓴다. 예측값만으로 공식 조류경보가 발령된 것처럼 말하지 않는다.
 - 공식 발령 여부 자료는 제공되지 않는다. 발령 상태를 단정하지 않는다.
 - 조류경보 발령은 2회 연속 측정 기준이고, 상수원 구간과 친수활동 구간의 기준이 다르다. 섞지 않는다.
+- 기준을 물을 때 구간이 정해지지 않았으면 상수원 구간과 친수활동 구간을 나눠 각각 답한다. 두 구간의 기준을 하나로 합치거나 공통이라고 쓰지 않는다.
+- 기준 수치는 '표 6' 근거의 표 값을 그대로 옮긴다.
 - 분위수 범위가 없으면 범위를 말하지 않는다.
 - 유해남조류 세포수와 그 구간, 증감은 시스템이 답 앞에 따로 붙인다. answer에 다시 쓰지 말고 수질 변화와 대응만 쓴다.
 - 문서 근거를 쓴 문장 끝에 [E1]처럼 근거 번호를 붙이고, 실제로 쓴 번호만 evidence_ids에 넣는다. 쓴 근거가 없으면 비운다.
@@ -43,6 +46,9 @@ STAGE_RANGES = {
 }
 STAGE_NAMES = {1: "관심", 2: "경계", 3: "경계", 4: "조류대발생"}
 
+
+# 지점이 있어야 답할 수 있는 질문의 표현
+SITE_WORDS = ("녹조값", "현재 상태", "전망", "예측값", "세포수가 얼마", "수치")
 
 # CSV 열 이름의 앞부분. LLM이 WT와 Temp, TN과 TP를 헷갈리지 않게 우리말로 바꿔 넘긴다
 COLUMN_LABELS = {
@@ -86,6 +92,20 @@ class RagAnswer:
     answer: str
     prompt: str
     raw_output: str
+
+
+def site_request(question: str) -> str | None:
+    """지점 없이 관측·예측 수치를 물으면 LLM을 부르지 않고 지점을 되묻는다."""
+    if find_date(question) is None and not any(w in question for w in SITE_WORDS):
+        return None
+    for river, name in RIVER_NAMES.items():
+        if name in question:
+            sites = [loc.name for loc in LOCATIONS.values() if loc.river == river]
+            return (
+                f"{name}은 수계 이름이라 값을 하나로 답할 수 없습니다. "
+                f"{', '.join(sites)} 중 어느 지점인지 알려 주세요."
+            )
+    return "관측값과 예측값은 지점별로 있습니다. 어느 지점인지 알려 주세요."
 
 
 def labeled(row: dict) -> dict:
@@ -197,6 +217,23 @@ def build_answer(
     predictor: Predictor,
     observations: Observations,
 ) -> RagAnswer:
+    request = None if location is not None else site_request(question)
+    if request is not None:
+        return RagAnswer(
+            location=None,
+            base_date=base,
+            observed=None,
+            forecast=None,
+            stage=None,
+            actions=[],
+            evidence=[],
+            evidence_ids=[],
+            limitations="지점이 지정되지 않아 관측과 예측을 조회하지 않았습니다.",
+            answer=request,
+            prompt="",
+            raw_output="",
+        )
+
     if location is not None and base is None:
         base = observations.weeks(location, None, None, 2)[0]
     if base is not None:
@@ -213,7 +250,7 @@ def build_answer(
     if observed is not None and classify_stage(observed) in STAGE_NAMES:
         name = STAGE_NAMES[classify_stage(observed)]
         query = f"{question} 상수원 구간 {name} 단계 관계기관 조치사항"
-    hits = search(session, query, settings.rag_top_k)
+    hits = search_evidence(session, question, query, settings.rag_top_k)
     user = (
         f"[질문]\n{question}\n\n"
         f"[관측]\n{observed_section(location, base, observed, observations)}\n\n"
@@ -246,7 +283,13 @@ def build_answer(
         )
 
     # 화면의 출처 번호와 맞춘다. 쓰지 않은 근거 번호는 지운다
-    text = output.answer.replace("\\n", "\n")
+    text = re.sub(r"<br\s*/?>", "\n", output.answer).replace("\\n", "\n")
+    # [E1, E2]처럼 묶어 쓴 인용을 낱개로 푼다
+    text = re.sub(
+        r"\[(E\d+(?:\s*,\s*E\d+)+)\]",
+        lambda m: "".join(f"[{item.strip()}]" for item in m.group(1).split(",")),
+        text,
+    )
     for number, item in enumerate(used, start=1):
         text = text.replace(f"[{item}]", f"[{number}]")
     text = re.sub(r"\s*\[E\d+\]", "", text)
