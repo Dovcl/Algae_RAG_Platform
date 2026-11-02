@@ -6,7 +6,7 @@ LLM 실패를 mock으로 대체하지 않는다. 입력과 원본 출력은 로�
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 
 import httpx2
@@ -20,6 +20,7 @@ from app.ml.predictor import Prediction, Predictor, classify_stage, to_cells
 from app.rag.mock import find_date
 from app.rag.retrieve import (
     CRITERIA_TABLE,
+    PARTICLE,
     Hit,
     is_criteria_question,
     search_evidence,
@@ -128,6 +129,14 @@ REWRITE_MAX_CHARS = 120
 ZONES = ("상수원", "친수활동")
 # 표 6의 행. LLM이 없는 해제 기준을 지어내거나 상한을 빠뜨린 적이 있어 코드가 쓴다
 CRITERIA_ROW = re.compile(r"구간: (.+?)구간 \| 단계: (.+?) \| 발령·해제 기준: (.+)")
+OTHER_PLACES = ("일본", "미국", "중국", "유럽", "해외", "외국", "세계", "다른 나라")
+# 자료가 없다고 답할 때는 조치도 지어내기 쉽다
+NO_DATA = re.compile(r"(자료|문서|근거).{0,70}(없|부족|어렵|않습니다|불가능)")
+# 적재하지 않은 범위. 문서 없이 답하면 그럴듯하게 지어낸다
+METHOD_QUESTION = re.compile(
+    r"(측정|분석|계수|시험)\s*방법|(어떤 방법|어떻게).*(측정|분석|계수)"
+)
+OUT_OF_SCOPE = "제공된 자료에는 {topic} 내용이 없어 답할 수 없습니다."
 VALUE_WORDS = ("기준은", "기준이", "얼마", "몇", "언제")
 # 구간·단계별 조치 표. LLM이 다른 기관의 조치를 섞은 적이 있어 표의 행을 그대로 쓴다
 ACTION_TABLES = {
@@ -168,6 +177,18 @@ ACTION_NUMBER = re.compile(
     r"^\s*(?:[*•-]\s*)?(?:\d+(?:[.)]\s*|\s+|(?=[가-힣])(?![회개단차주일시명곳년월])))?"
 )
 LIMITATION_JUNK = re.compile(r"<|`|\{|->")
+OVERVIEW_WORDS = ("전망", "상황", "대응", "조치")
+OFFICIAL_UNKNOWN = "공식 경보 발령 여부는 제공된 자료로 판단할 수 없습니다."
+ACTION_WORDS = ("대응", "조치", "해야", "할 일")
+MONITOR_WORDS = ("모니터링", "분석 항목", "채취")
+WHO_WHEN_WORDS = ("누가", "어느 기관", "언제", "어디서")
+MEANING_WORDS = ("의미", "뜻")
+LONG_NAME = re.compile(r"\([^()]*이하 같다\)\s*")
+LISTED_ACTIONS = re.compile(r"[^.\n]*:\s*\n?\s*1[.)][\s\S]*$")
+NUMBERED_LINE = re.compile(r"^\s*\d+[.)].*$", re.MULTILINE)
+SENTENCE_END = re.compile(r"(?<=[.다])\s+")
+MISSING_FORECAST = re.compile(r"예측.*(제공되지|제공할 수 없|없어|없습니다|부족)")
+MISSING_OBSERVED = re.compile(r"관측.*(제공되지|없어|없습니다|부족)")
 ACTION_ROW = re.compile(r"단계: .+? \| 관계 기관: (.+?) \| 조치사항: (.+)")
 LAST_BRACKET = re.compile(r"\s*\([^()]*\)$")
 OFFICIAL_WORDS = ("단계", "경보", "기준", "조치", "구간", "발령", "해제", "대응")
@@ -294,12 +315,21 @@ def is_general_question(question: str, has_site: bool) -> bool:
     return classify_route(question, has_site) == "general"
 
 
+def short_number(value: object) -> object:
+    """26.42857143 같은 평균값을 그대로 말하지 않게 줄인다."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return value
+    return round(number, 3 if abs(number) < 1 else 1)
+
+
 def labeled(row: dict) -> dict:
     result = {}
     for column, value in row.items():
         label = COLUMN_LABELS.get(column.split("_")[0], column)
         place = column.split("_", 1)[1] if "_" in column else ""
-        result[f"{label} {place}".strip()] = value or "결측"
+        result[f"{label} {place}".strip()] = short_number(value) or "결측"
     return result
 
 
@@ -525,6 +555,14 @@ def asks_criteria_value(question: str) -> bool:
     """표의 값을 묻는 질문인가. 한 번만 넘어도 발령하는지 같은 판단은 LLM에 맡긴다."""
     if not is_criteria_question(question):
         return False
+    # 표 6은 지금 우리나라의 기준뿐이다. 다른 나라나 다른 해의 기준을 대신 답하지 않는다
+    if YEAR.search(question) or any(word in question for word in OTHER_PLACES):
+        return False
+    stage_named = any(
+        term in question for terms in STAGE_TERMS.values() for term in terms
+    )
+    if "기준" not in question and not stage_named:
+        return False
     return "해제" in question or any(word in question for word in VALUE_WORDS)
 
 
@@ -573,51 +611,236 @@ def criteria_answer(session: Session, question: str) -> RagAnswer | None:
     return fixed_answer(question, "표 6 기준", text, evidence)
 
 
-def action_target(question: str) -> tuple[str, str, str] | None:
-    """조치를 묻는 질문의 (표 번호, 단계, 기관 표현). 하나로 정해지지 않으면 None이다."""
+def out_of_scope_answer(question: str) -> RagAnswer | None:
+    """자료에 없다고 정해져 있는 질문을 LLM에 넘기지 않는다."""
+    if any(word in question for word in OTHER_PLACES):
+        topic = "다른 나라의 제도에 관한"
+    elif METHOD_QUESTION.search(question):
+        topic = "측정·분석 방법에 관한"
+    else:
+        return None
+    return fixed_answer(question, "범위 밖", OUT_OF_SCOPE.format(topic=topic), [])
+
+
+def action_rows(
+    session: Session, zone: str, stage: str
+) -> list[tuple[str, list[str], Hit]]:
+    """구간·단계의 조치 표 행을 (기관, 조치 목록, 근거)로 돌려준다."""
+    table = ACTION_TABLES.get((zone, stage))
+    if table is None:
+        return []
+    rows = []
+    for hit in table_chunks(session, table):
+        for line in hit.text.splitlines():
+            row = ACTION_ROW.fullmatch(line)
+            if row is None:
+                continue
+            role = LONG_NAME.sub(" ", LAST_BRACKET.sub("", row[1]))
+            parts = [
+                part.strip()
+                for part in re.split(r"(?:^|\s)\d\)\s*", row[2])
+                if part.strip()
+            ]
+            rows.append((role, parts, hit))
+    return rows
+
+
+def action_target(question: str) -> tuple[list[str], str, str | None] | None:
+    """조치를 묻는 질문의 (구간들, 단계, 기관 표현). 정해지지 않으면 None이다."""
     stages = [
         stage
         for stage, terms in STAGE_TERMS.items()
         if any(term in question for term in terms)
     ]
     roles = {term for word, term in ROLE_TERMS.items() if word in question}
-    if len(stages) != 1 or len(roles) != 1 or is_criteria_question(question):
+    asks_action = any(word in question for word in ACTION_WORDS)
+    monitoring = any(word in question for word in MONITOR_WORDS)
+    if len(stages) != 1 or len(roles) > 1:
         return None
-    zone = "친수활동" if "친수활동" in question else "상수원"
-    table = ACTION_TABLES.get((zone, stages[0]))
-    return (table, stages[0], roles.pop()) if table else None
+    if is_criteria_question(question) and not asks_action:
+        return None
+    if not (roles or asks_action or monitoring):
+        return None
+    zones = [zone for zone in ZONES if zone in question]
+    if monitoring and not roles:
+        return zones or list(ZONES), stages[0], "물환경연구소"
+    return zones or ["상수원"], stages[0], roles.pop() if roles else None
 
 
 def action_answer(session: Session, question: str) -> RagAnswer | None:
-    """단계와 기관을 묻는 질문에 조치 표의 행으로 답한다. 행이 없으면 None을 돌려준다."""
+    """단계를 묻는 질문에 조치 표의 행으로 답한다. 행이 없으면 None을 돌려준다."""
     target = action_target(question)
     if target is None:
         return None
-    table, stage, role = target
+    zones, stage, role = target
     evidence: list[Hit] = []
-    role_name = None
     actions: list[str] = []
-    for hit in table_chunks(session, table):
-        for line in hit.text.splitlines():
-            row = ACTION_ROW.fullmatch(line)
-            if row is None or role not in LAST_BRACKET.sub("", row[1]):
+    names: list[str] = []
+    for zone in zones:
+        for name, parts, hit in action_rows(session, zone, stage):
+            if role is not None and role not in name:
                 continue
-            role_name = LAST_BRACKET.sub("", row[1])
-            actions += [
-                part.strip()
-                for part in re.split(r"(?:^|\s)\d\)\s*", row[2])
-                if part.strip()
-            ]
+            names.append(name)
+            label = f"{zone} 구간: " if len(zones) > 1 else ""
+            if role is None:
+                actions.append(f"{name}: {', '.join(parts)}")
+            elif label:
+                actions.append(label + ", ".join(parts))
+            else:
+                actions += parts
             if hit not in evidence:
                 evidence.append(hit)
     if not actions:
         return None
-    zone = "친수활동" if "친수활동" in question else "상수원"
+    tables = ", ".join(dict.fromkeys(ACTION_TABLES[(zone, stage)] for zone in zones))
+    who = f"{names[0]}의" if role is not None else "기관별"
+    area = "" if len(zones) > 1 else f"{zones[0]} 구간 "
     limitations = (
-        "" if zone in question else "구간이 없어 상수원 구간 기준으로 답했습니다."
+        ""
+        if len(zones) > 1 or zones[0] in question
+        else "구간이 없어 상수원 구간 기준으로 답했습니다."
     )
-    text = f"{table}에 따른 {zone} 구간 {stage} 단계 {role_name}의 조치입니다. [1]"
-    return fixed_answer(question, f"{table} 조치", text, evidence, actions, limitations)
+    marks = "".join(f"[{n}]" for n in range(1, len(evidence) + 1))
+    text = f"{tables}에 따른 {area}{stage} 단계 {who} 조치입니다. {marks}"
+    if any(word in question for word in MEANING_WORDS):
+        meaning = criteria_answer(session, question)
+        if meaning is not None:
+            first, _, note = meaning.answer.partition("\n\n")
+            count = len(meaning.evidence)
+            shifted = re.sub(
+                r"\[(\d+)\]",
+                lambda m: f"[{int(m[1]) + count}]",
+                text,
+            )
+            text = f"{first}\n\n{shifted}\n\n{note}"
+            evidence = meaning.evidence + evidence
+    rule = f"{tables} 조치"
+    return fixed_answer(question, rule, text, evidence, actions, limitations)
+
+
+def lookup_answer(session: Session, question: str) -> RagAnswer | None:
+    """누가, 언제 하는지 묻는 질문에 조치 표에서 그 말이 있는 행을 찾아 답한다."""
+    if not any(word in question for word in WHO_WHEN_WORDS):
+        return None
+    words = {PARTICLE.sub("", word.strip("?!.,")) for word in question.split()}
+    words = {word for word in words if len(word) >= 3}
+    found = [
+        (stage, name, parts, hit)
+        for stage in ("관심", "경계", "조류대발생")
+        for name, parts, hit in action_rows(session, "상수원", stage)
+        if any(word in part for word in words for part in parts)
+    ]
+    if not found:
+        return None
+    evidence = list(dict.fromkeys(hit for *_, hit in found))
+    lines = [
+        f"- {stage} 단계: {name} ({', '.join(parts)}) [{evidence.index(hit) + 1}]"
+        for stage, name, parts, hit in found
+    ]
+    text = "조치 표에서 찾은 내용입니다.\n" + "\n".join(lines)
+    limits = "상수원 구간 조치 표 기준입니다."
+    return fixed_answer(question, "조치 표 찾기", text, evidence, limitations=limits)
+
+
+def site_actions(
+    session: Session, location: Location, observed: float
+) -> tuple[list[str], list[Hit]]:
+    """지점의 측정값이 속한 단계의 조치를 표에서 꺼낸다."""
+    stage = STAGE_NAMES.get(classify_stage(observed))
+    if stage is None:
+        return [], []
+    rows = action_rows(session, location.zone or "상수원", stage)
+    actions = [f"{name}: {', '.join(parts)}" for name, parts, _ in rows]
+    return actions, list(dict.fromkeys(hit for *_, hit in rows))
+
+
+def row_value(row: dict, label: str) -> float | None:
+    """주 단위 자료에서 항목 값을 꺼낸다. 결측이면 None이다."""
+    for key, value in labeled(row).items():
+        if key.startswith(label):
+            return value if isinstance(value, float) else None
+    return None
+
+
+def change_word(before: float, after: float) -> str:
+    return "높아졌" if after > before else "낮아졌" if after < before else "그대로"
+
+
+def trend_sentence(rows: list[dict]) -> str:
+    """직전 주와 기준 주의 관측을 비교한다. 해석은 하지 않고 값만 쓴다."""
+    if len(rows) < 2:
+        return ""
+    before, after = rows[-2], rows[-1]
+    parts = []
+    for label, particle, unit in (("수온", "은", "°C"), ("클로로필a", "는", " mg/m³")):
+        old, new = row_value(before, label), row_value(after, label)
+        if old is None or new is None:
+            continue
+        word = change_word(old, new)
+        tail = "습니다" if word != "그대로" else "입니다"
+        parts.append(f"{label}{particle} {old}에서 {new}{unit}로 {word}{tail}.")
+    rain = row_value(after, "강수량")
+    if rain is not None:
+        parts.append(f"이번 주 강수량은 {rain} mm입니다.")
+    return " ".join(parts)
+
+
+def site_overview_answer(
+    session: Session,
+    question: str,
+    location: Location,
+    base: date,
+    observed: float,
+    forecast: Prediction,
+    stage: int,
+    observations: Observations,
+) -> RagAnswer:
+    """지점의 전망과 대응을 값과 표로 조립한다. LLM은 증감과 단계 해석을 자주 틀린다."""
+    actions, evidence = site_actions(session, location, observed)
+    name = STAGE_NAMES.get(classify_stage(observed))
+    if name and actions:
+        marks = "".join(f"[{n}]" for n in range(1, len(evidence) + 1))
+        guide = f"이번 주 측정값 기준으로 {name} 단계 조치를 표시했습니다. {marks}"
+    else:
+        guide = "이번 주 측정값은 경보 기준 미만입니다."
+    parts = (
+        status_sentence(location, base, observed, forecast, stage),
+        trend_sentence(observations.recent(location, base, 2)),
+        f"{guide} {OFFICIAL_UNKNOWN}",
+    )
+    limitations = ""
+    if location.zone is None:
+        limitations = (
+            f"{location.name}의 구간(상수원/친수활동)은 확인되지 않아 "
+            "세포수 구간은 상수원 기준으로 표시했습니다."
+        )
+    text = "\n\n".join(part for part in parts if part)
+    fixed = fixed_answer(question, "지점 개요", text, evidence, actions, limitations)
+    return replace(
+        fixed,
+        location=location,
+        base_date=base,
+        observed=observed,
+        forecast=forecast,
+        stage=stage,
+    )
+
+
+def drop_listed_actions(text: str) -> str:
+    """조치는 목록으로 따로 보여 주므로 본문의 번호 목록을 지운다."""
+    return NUMBERED_LINE.sub("", LISTED_ACTIONS.sub("", text))
+
+
+def drop_false_limits(text: str, observed: object, forecast: object) -> str:
+    """있는 자료를 없다고 한 문장을 지운다. 분위수가 없다는 안내는 남긴다."""
+    kept = []
+    for sentence in SENTENCE_END.split(text):
+        no_forecast = forecast is not None and MISSING_FORECAST.search(sentence)
+        no_observed = observed is not None and MISSING_OBSERVED.search(sentence)
+        if (no_forecast or no_observed) and "분위수" not in sentence:
+            continue
+        kept.append(sentence)
+    return " ".join(kept)
 
 
 def split_sentences(line: str) -> str:
@@ -673,11 +896,12 @@ def build_answer(
         return concept_answer(question)
 
     if location is None and base is None:
-        fixed = None
-        if asks_criteria_value(question):
+        fixed = out_of_scope_answer(question)
+        if fixed is None and asks_criteria_value(question):
             fixed = criteria_answer(session, question)
         fixed = fixed or action_answer(session, question)
         fixed = fixed or forecast_answer(session, question)
+        fixed = fixed or lookup_answer(session, question)
         if fixed is not None:
             return fixed
 
@@ -691,6 +915,23 @@ def build_answer(
         observed = observations.cyanocell(location, base)
         forecast = predictor.predict(location, base + timedelta(weeks=1))
         stage = None if forecast is None else classify_stage(forecast.q50)
+
+    if (
+        observed is not None
+        and forecast is not None
+        and stage is not None
+        and any(word in question for word in OVERVIEW_WORDS)
+    ):
+        return site_overview_answer(
+            session,
+            question,
+            location,
+            base,
+            observed,
+            forecast,
+            stage,
+            observations,
+        )
 
     # 지점 시나리오의 질문은 조치를 직접 말하지 않으므로, 측정값의 단계로 검색어를 보강한다
     query = question
@@ -725,7 +966,23 @@ def build_answer(
         for item in output.evidence_ids
         if item not in known and re.fullmatch(r"E\d+", item)
     ]
-    limitations = clean_limitations(output.limitations)
+    table_actions: list[str] = []
+    if (
+        location is not None
+        and observed is not None
+        and any(word in question for word in ACTION_WORDS)
+    ):
+        table_actions, table_hits = site_actions(session, location, observed)
+        for hit in table_hits:
+            key = next((k for k, v in known.items() if v == hit), None)
+            if key is None:
+                key = f"E{len(known) + 1}"
+                known[key] = hit
+            if key not in used:
+                used.append(key)
+    limitations = drop_false_limits(
+        clean_limitations(output.limitations), observed, forecast
+    )
     if unknown:
         limitations += (
             f" (제공하지 않은 근거 번호를 인용해 제외함: {', '.join(unknown)})"
@@ -746,7 +1003,7 @@ def build_answer(
         limitations += (
             " 이 답변은 한 구간만 다룹니다. 구간별 기준은 출처의 표를 확인하세요."
         )
-    if len(output.management_actions) > MAX_ACTIONS:
+    if not table_actions and len(output.management_actions) > MAX_ACTIONS:
         limitations += f" 조치는 {MAX_ACTIONS}개까지만 표시했습니다. 전체 내용은 출처 문서를 확인하세요."
 
     # 화면의 출처 번호와 맞춘다. 쓰지 않은 근거 번호는 지운다
@@ -764,11 +1021,14 @@ def build_answer(
     text = LEAKED_ACTIONS.sub("", text)
     if observed is not None or forecast is not None:
         text = drop_restated(text)
+    if table_actions:
+        text = drop_listed_actions(text)
     # 본문에 번호가 없는 근거는 끝에 붙여 출처 목록과 맞춘다
     text = text.rstrip() + "".join(
         f"[{number}]" for number in range(1, len(used) + 1) if f"[{number}]" not in text
     )
     text = tidy_text(text)
+    llm_actions = [] if NO_DATA.search(text) else output.management_actions
 
     return RagAnswer(
         location=location,
@@ -777,9 +1037,10 @@ def build_answer(
         forecast=forecast,
         stage=stage,
         # 화면이 번호를 매기므로 LLM이 붙인 번호는 뗀다
-        actions=[
+        actions=table_actions
+        or [
             ACTION_NUMBER.sub("", EVIDENCE_MARK.sub("", action))
-            for action in output.management_actions[:MAX_ACTIONS]
+            for action in llm_actions[:MAX_ACTIONS]
         ],
         evidence=[known[item] for item in used],
         evidence_ids=used,

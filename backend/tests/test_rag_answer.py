@@ -628,6 +628,10 @@ def test_criteria_fall_back_without_table(monkeypatch):
         ("경보는 언제 해제돼?", True),
         ("남조류 세포수가 한 번만 기준을 넘으면 경보를 발령하는가?", False),
         ("경계 단계에서 취수장은 뭘 해야 해?", False),
+        ("조류경보를 어기면 벌금이 얼마야?", False),
+        ("조류경보제 연간 예산은 얼마야?", False),
+        ("일본의 조류경보 기준은 어떻게 돼?", False),
+        ("2030년에 조류경보 기준은 어떻게 바뀌어?", False),
     ],
 )
 def test_asks_criteria_value(question, expected):
@@ -677,12 +681,11 @@ def test_action_answer_ignores_role_in_brackets(monkeypatch):
     "question",
     [
         "정수장에서 지오스민이 20 ng/L를 넘으면 어떻게 대응하나?",
-        "경계 단계 조치는?",
         "관심과 경계 단계에서 수면관리자는 뭘 해?",
         "경계 단계 기준은 얼마야? 수면관리자 말고",
     ],
 )
-def test_action_target_needs_one_stage_and_role(question):
+def test_action_target_needs_one_stage(question):
     assert rag.action_target(question) is None
 
 
@@ -847,3 +850,136 @@ def test_rewrite_keeps_original_when_output_is_not_a_question(monkeypatch, outpu
     monkeypatch.setattr(rag, "ask_ollama", lambda *_, **__: output)
 
     assert rag.rewrite_question("왜 그래?", [("질문", "답")]) == "왜 그래?"
+
+
+def test_stage_question_lists_every_role(monkeypatch):
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: [action_hit()])
+
+    result = rag.action_answer(None, "경계 단계 조치는?")
+
+    assert len(result.actions) == 3
+    assert result.actions[2].startswith("취수장·정수장 관리자: 취수구 이동, ")
+
+
+def test_monitoring_question_uses_monitoring_role(monkeypatch):
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: [action_hit()])
+
+    result = rag.action_answer(None, "경계 단계의 모니터링 주기는?")
+
+    assert all("주 2회 시료 채취" in action for action in result.actions)
+    assert result.actions[0].startswith("상수원 구간: ")
+
+
+def test_lookup_finds_action_word(monkeypatch):
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: [action_hit()])
+
+    result = rag.lookup_answer(None, "차단막 설치는 누가 언제 하나?")
+
+    assert "수면관리자" in result.answer
+
+
+def test_lookup_needs_who_or_when():
+    assert rag.lookup_answer(None, "차단막 설치 방법은?") is None
+
+
+def test_site_actions_follow_observed_stage(monkeypatch):
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: [action_hit()])
+    location = next(iter(LOCATIONS.values()))
+
+    actions, hits = rag.site_actions(None, location, 4.5)
+
+    assert len(actions) == 3
+    assert len(hits) == 1
+
+
+def test_drop_listed_actions():
+    text = "전망은 관심입니다.\n다음 조치를 권장합니다:\n1) 시료 채취\n2) 정수 강화"
+
+    assert rag.drop_listed_actions(text).strip() == "전망은 관심입니다."
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("예측 데이터가 제공되지 않아 판단이 어렵습니다.", ""),
+        ("분위수 예측 범위가 없습니다.", "분위수 예측 범위가 없습니다."),
+    ],
+)
+def test_drop_false_limits(text, expected):
+    assert rag.drop_false_limits(text, 1.0, object()) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("26.42857143", 26.4), ("0.01234", 0.012), ("없음", "없음"), (None, None)],
+)
+def test_short_number(value, expected):
+    assert rag.short_number(value) == expected
+
+
+def test_no_data_answer_drops_invented_actions(stubbed):
+    stubbed["output"] = {
+        "answer": "제공된 자료로는 이 내용을 확인할 수 없어 판단이 어렵습니다.",
+        "management_actions": ["지어낸 조치"],
+        "evidence_ids": [],
+        "limitations": "",
+    }
+
+    assert run().actions == []
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "일본의 조류경보 기준은 어떻게 돼?",
+        "클로로필-a는 어떤 방법으로 측정해?",
+        "측정 방법 알려줘",
+    ],
+)
+def test_out_of_scope_questions_skip_llm(question):
+    result = rag.out_of_scope_answer(question)
+
+    assert "답할 수 없습니다" in result.answer
+    assert result.evidence == []
+
+
+def test_in_scope_question_is_not_refused():
+    assert rag.out_of_scope_answer("조류경보 해제 기준은?") is None
+
+
+def test_trend_sentence_only_states_values():
+    rows = [
+        {"WT_CS": "24.3", "Chla_CS": "34.7", "Prec_CS": "30.1"},
+        {"WT_CS": "26.1", "Chla_CS": "30.0", "Prec_CS": "1.0"},
+    ]
+
+    text = rag.trend_sentence(rows)
+
+    assert "수온은 24.3에서 26.1°C로 높아졌습니다." in text
+    assert "클로로필a는 34.7에서 30.0 mg/m³로 낮아졌습니다." in text
+    assert "이번 주 강수량은 1.0 mm입니다." in text
+
+
+def test_trend_sentence_skips_missing_values():
+    rows = [{"WT_CS": "", "Prec_CS": ""}, {"WT_CS": "26.1", "Prec_CS": ""}]
+
+    assert rag.trend_sentence(rows) == ""
+
+
+def test_site_overview_does_not_call_llm(monkeypatch):
+    monkeypatch.setattr(rag, "ask_ollama", pytest.fail)
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: [action_hit()])
+    monkeypatch.setattr(rag, "classify_route", lambda *_: "site")
+    monkeypatch.setattr(rag, "search_evidence", pytest.fail)
+
+    result = rag.build_answer(
+        None,
+        "칠서 전망과 대응을 알려줘",
+        LOCATIONS["CS"],
+        date(2023, 6, 12),
+        MockPredictor(),
+        MockObservations(),
+    )
+
+    assert result.observed is not None
+    assert rag.OFFICIAL_UNKNOWN in result.answer

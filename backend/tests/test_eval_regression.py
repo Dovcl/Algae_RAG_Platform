@@ -102,7 +102,7 @@ def test_invalid_citations_include_zero(citation):
 
 def test_checks_actions_and_limitations_too():
     failures = check(
-        CASE, result(actions=["조치 [E1]", "**중복**"] * 3, limitations="<br>일종")
+        CASE, result(actions=["조치 [E1]", "**중복**"] * 4, limitations="<br>일종")
     )
     for text in (
         "금지형식:[E",

@@ -16,7 +16,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 MAX_SECONDS = 120
-MAX_ACTIONS = 5
+MAX_ACTIONS = 6  # 조치 표의 기관 수
 FORBIDDEN = ("**", "<br", "[E")
 
 
