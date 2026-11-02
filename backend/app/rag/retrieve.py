@@ -1,11 +1,12 @@
 """질문을 bge-m3로 임베딩해 컬렉션에서 가까운 청크를 찾는다. 코사인 거리 기준 정확 검색이다."""
 
 import re
-from dataclasses import dataclass
+from collections import Counter
+from dataclasses import dataclass, replace
 from itertools import pairwise
 
 import httpx2
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -31,6 +32,7 @@ class Hit:
     table_id: str | None
     text: str
     distance: float  # 코사인 거리. 작을수록 가깝고 정답 확률은 아니다
+    related_chunk_ids: tuple[str, ...] = ()
 
 
 def embed_query(question: str) -> list[float]:
@@ -100,6 +102,99 @@ def table_chunks(session: Session, table_id: str) -> list[Hit]:
     return [to_hit(chunk, document, 0.0) for chunk, document in rows]
 
 
+def page_chunks(session: Session, document_id: str, page: int) -> list[Hit]:
+    """표와 같은 쪽의 설명·조건을 함께 읽는다."""
+    if not settings.rag_collection:
+        return []
+    collection = ready_collection(session)
+    rows = session.execute(
+        select(Chunk, Document)
+        .join(ChunkEmbedding, ChunkEmbedding.chunk_id == Chunk.chunk_id)
+        .join(Document, Document.document_id == Chunk.document_id)
+        .where(
+            ChunkEmbedding.collection_id == collection.collection_id,
+            Chunk.document_id == document_id,
+            Chunk.pdf_page_start <= page,
+            Chunk.pdf_page_end >= page,
+        )
+        .order_by(Chunk.chunk_id)
+    )
+    return [to_hit(chunk, document, 0.0) for chunk, document in rows]
+
+
+def merge_table_context(hit: Hit, neighbors: list[Hit]) -> Hit:
+    """같은 표의 머리글·행을 연결하고 중복 열 이름에 하위 머리글을 붙인다."""
+    header = next(
+        (line for line in hit.text.splitlines() if line.startswith("열: ")), None
+    )
+    if header is None:
+        return hit
+    peers = [
+        h
+        for h in neighbors
+        if h.document_id == hit.document_id
+        and h.pdf_page == hit.pdf_page
+        and h.table_id == hit.table_id
+        and (hit.table_id is not None or h.section == hit.section)
+        and header in h.text.splitlines()
+    ]
+    if not peers:
+        return hit
+    columns = header.removeprefix("열: ").split(" / ")
+    counts = Counter(columns)
+    lines = list(dict.fromkeys(line for h in peers for line in h.text.splitlines()))
+    labels = columns
+    for line in lines:
+        cells = [part.split(": ", 1) for part in line.split(" | ")]
+        if len(cells) != len(columns) or any(len(cell) != 2 for cell in cells):
+            continue
+        keys, values = zip(*cells, strict=True)
+        if list(keys) == columns and any(
+            v == c for v, c in zip(values, columns, strict=True)
+        ):
+            labels = [
+                f"{c}({v})" if counts[c] > 1 and c != v else c
+                for c, v in zip(columns, values, strict=True)
+            ]
+            break
+    rewritten = []
+    for line in lines:
+        cells = [part.split(": ", 1) for part in line.split(" | ")]
+        if (
+            len(cells) == len(columns)
+            and all(len(cell) == 2 for cell in cells)
+            and [cell[0] for cell in cells] == columns
+        ):
+            line = " | ".join(
+                f"{label}: {cell[1]}" for label, cell in zip(labels, cells, strict=True)
+            )
+        rewritten.append(line)
+    return replace(
+        hit,
+        text="\n".join(rewritten),
+        related_chunk_ids=tuple(
+            h.chunk_id for h in peers if h.chunk_id != hit.chunk_id
+        ),
+    )
+
+
+def complete_table_context(session: Session, hits: list[Hit]) -> list[Hit]:
+    cache: dict[tuple[str, int], list[Hit]] = {}
+    completed = []
+    seen = set()
+    for hit in hits:
+        if hit.chunk_id in seen:
+            continue
+        if "\n열: " in hit.text:
+            key = (hit.document_id, hit.pdf_page)
+            if key not in cache:
+                cache[key] = page_chunks(session, *key)
+            hit = merge_table_context(hit, cache[key])
+        completed.append(hit)
+        seen.update((hit.chunk_id, *hit.related_chunk_ids))
+    return completed
+
+
 def question_phrases(question: str) -> list[str]:
     """질문의 이어진 두 단어. 조사를 떼어 문서의 표현과 맞춘다."""
     words = [PARTICLE.sub("", word.strip("?!.,")) for word in question.split()]
@@ -116,14 +211,38 @@ def phrase_chunks(session: Session, question: str) -> list[Hit]:
         return []
     collection = ready_collection(session)
     found: dict[str, Hit] = {}
-    for phrase in question_phrases(question):
+    # 소수 수치처럼 드문 표현은 표의 행·조건을 찾는 단서로 함께 쓴다.
+    literals = list(dict.fromkeys(re.findall(r"(?<![\d.])\d+\.\d+(?![\d.])", question)))
+    ranges = list(
+        dict.fromkeys(
+            re.sub(r"\s+", "", value).replace("～", "~").replace("∼", "~")
+            for value in re.findall(
+                r"\d+(?:\.\d+)?\s*[~～∼]\s*\d+(?:\.\d+)?\s*(?:%|mg/L|ng/L)", question
+            )
+        )
+    )
+    expressions = [(value, True) for value in ranges] + [
+        (value, False) for value in [*literals, *question_phrases(question)]
+    ]
+    # 질문의 물질·투입량을 함께 찾아, 같은 mg/L라도 다른 공정의 값이 앞서지 않게 한다.
+    anchors = [
+        re.sub(r"\s+", "", value).removeprefix("분말")
+        for value in re.findall(
+            r"(?:분말활성탄|활성탄|오존|염소)\s*\d+(?:\.\d+)?\s*(?:mg/L|ng/L)", question
+        )
+    ]
+    expressions = [(value, True) for value in anchors] + expressions
+    for phrase, compact in expressions:
+        column = (
+            func.regexp_replace(Chunk.text, r"\s+", "", "g") if compact else Chunk.text
+        )
         rows = session.execute(
             select(Chunk, Document)
             .join(ChunkEmbedding, ChunkEmbedding.chunk_id == Chunk.chunk_id)
             .join(Document, Document.document_id == Chunk.document_id)
             .where(
                 ChunkEmbedding.collection_id == collection.collection_id,
-                Chunk.text.contains(phrase, autoescape=True),
+                column.contains(phrase, autoescape=True),
             )
             .order_by(Chunk.chunk_id)
             .limit(PHRASE_LIMIT + 1)

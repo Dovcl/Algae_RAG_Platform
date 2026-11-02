@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from datetime import date
 
 import pytest
@@ -41,6 +42,9 @@ def stubbed(monkeypatch):
     monkeypatch.setattr(rag, "search_evidence", lambda *_: [make_hit(1), make_hit(2)])
     monkeypatch.setattr(rag, "table_chunks", lambda *_: [])
     monkeypatch.setattr(rag, "classify_route", lambda *_: "document")
+    monkeypatch.setattr(
+        rag, "interpret_question", lambda *_: rag.QuestionPlan(wants_actions=True)
+    )
     return calls
 
 
@@ -225,7 +229,11 @@ def test_classify_route_falls_back_to_document(monkeypatch):
 
 
 def test_concept_question_skips_documents(stubbed, monkeypatch):
-    monkeypatch.setattr(rag, "classify_route", lambda *_: "general")
+    monkeypatch.setattr(
+        rag,
+        "interpret_question",
+        lambda *_: rag.QuestionPlan(route="general", task="explain"),
+    )
 
     def fail(*_):
         raise AssertionError("개념 질문은 문서를 검색하지 않는다")
@@ -307,7 +315,10 @@ def test_removes_actions_leaked_into_answer(stubbed, label):
     assert "지어낸" not in run().answer
 
 
-def test_asks_again_when_criteria_answer_has_one_zone(stubbed):
+def test_asks_again_when_criteria_answer_has_one_zone(stubbed, monkeypatch):
+    monkeypatch.setattr(
+        rag, "interpret_question", lambda *_: rag.QuestionPlan(task="criteria")
+    )
     stubbed["output"] = {
         "answer": "상수원 구간은 10,000 이상일 때 경계 단계입니다.",
         "management_actions": [],
@@ -451,6 +462,9 @@ def test_unknown_zone_is_disclosed(stubbed):
 
 
 def test_river_question_asks_for_site(monkeypatch):
+    monkeypatch.setattr(
+        rag, "interpret_question", lambda *_: rag.QuestionPlan(route="site")
+    )
     monkeypatch.setattr(
         rag, "ask_ollama", lambda *_: pytest.fail("LLM을 부르면 안 된다")
     )
@@ -970,6 +984,11 @@ def test_site_overview_does_not_call_llm(monkeypatch):
     monkeypatch.setattr(rag, "ask_ollama", pytest.fail)
     monkeypatch.setattr(rag, "table_chunks", lambda *_: [action_hit()])
     monkeypatch.setattr(rag, "classify_route", lambda *_: "site")
+    monkeypatch.setattr(
+        rag,
+        "interpret_question",
+        lambda *_: rag.QuestionPlan(route="site", wants_actions=True),
+    )
     monkeypatch.setattr(rag, "search_evidence", pytest.fail)
 
     result = rag.build_answer(
@@ -983,3 +1002,322 @@ def test_site_overview_does_not_call_llm(monkeypatch):
 
     assert result.observed is not None
     assert rag.OFFICIAL_UNKNOWN in result.answer
+
+
+@pytest.mark.parametrize(
+    ("question", "zones", "stages", "roles"),
+    [
+        (
+            "친수활동 관심 표로 답해. 상수원 표를 대신 쓰지 말아줘.",
+            ["친수활동"],
+            ["관심"],
+            [],
+        ),
+        (
+            "상수원에서 물환경연구소의 관심과 경계 업무 비교",
+            ["상수원"],
+            ["관심", "경계"],
+            ["물환경연구소"],
+        ),
+        (
+            "친 수 활 동 관 심 단계의 정수장 업무가 있어?",
+            ["친수활동"],
+            ["관심"],
+            ["취수장"],
+        ),
+        ("관심 있는 업체의 가격과 경계심", [], [], []),
+    ],
+)
+def test_plan_targets_are_checked_against_the_question(
+    monkeypatch, question, zones, stages, roles
+):
+    monkeypatch.setattr(
+        rag,
+        "ask_ollama",
+        lambda *_, **__: json.dumps(
+            {"route": "document", "task": "actions", "wants_actions": True}
+        ),
+    )
+    plan = rag.interpret_question(question, False)
+    assert plan.zones == zones
+    assert plan.stages == stages
+    assert plan.roles == roles
+
+
+def test_plan_failure_does_not_enable_fixed_table_routes(monkeypatch):
+    monkeypatch.setattr(rag, "ask_ollama", lambda *_, **__: "잘린 JSON")
+    plan = rag.interpret_question("경계 단계가 뭐야?", False)
+    assert plan.route == "document"
+    assert plan.task == "other"
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "오존은 어떤 원리로 냄새를 줄여?",
+        "활성탄 흡착이란?",
+        "비대칭 분포에서도 중앙값이 있어?",
+    ],
+)
+def test_general_concepts_with_process_words_skip_documents(
+    stubbed, monkeypatch, question
+):
+    monkeypatch.setattr(
+        rag,
+        "interpret_question",
+        lambda *_: rag.QuestionPlan(route="general", task="explain"),
+    )
+    monkeypatch.setattr(rag, "search_evidence", pytest.fail)
+    stubbed["output"] = {
+        "answer": "일반적인 원리를 조건과 함께 설명하는 충분히 긴 답변입니다.",
+        "management_actions": ["질문과 무관한 조치"],
+        "evidence_ids": [],
+        "limitations": "",
+    }
+    result = rag.build_answer(
+        None, question, LOCATIONS["CS"], None, MockPredictor(), MockObservations()
+    )
+    assert result.answer == stubbed["output"]["answer"]
+    assert not result.actions and not result.evidence and result.observed is None
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "칠곡보의 위도와 경도를 추정해줘",
+        "공식 발령번호와 실제 해제일을 CSV로 알려줘",
+        "10,000 copies/mL를 같은 숫자의 세포/mL로 바꿔줘",
+        "상수원 경계 과태료가 얼마야?",
+    ],
+)
+def test_unprovided_specific_facts_do_not_reach_generation(monkeypatch, question):
+    monkeypatch.setattr(rag, "interpret_question", lambda *_: rag.QuestionPlan())
+    monkeypatch.setattr(rag, "ask_ollama", pytest.fail)
+    monkeypatch.setattr(rag, "search_evidence", pytest.fail)
+    result = rag.build_answer(
+        None, question, None, None, MockPredictor(), MockObservations()
+    )
+    assert not result.actions and not result.raw_output
+    assert "없" in result.answer
+
+
+def test_zero_in_observation_is_not_missing():
+    assert rag.labeled({"Cyanocell_CS": "0", "WT_CS": None}) == {
+        "유해남조류 세포수 CS": 0.0,
+        "수온 CS": "결측",
+    }
+
+
+def test_calculations_bind_values_to_correct_zone_and_stage():
+    text = rag.criteria_calculations(
+        "두 번 모두 9,999인 경우와 10,000인 경우", criteria_hits()
+    )
+    assert "9,999 세포/mL는 상수원 관심" in text
+    assert "10,000 세포/mL는 상수원 경계" in text
+    assert "평균·측정 횟수 합산으로 대체할 수 없다" in text
+    assert "두 번" not in text
+
+
+def test_calculations_sum_each_named_genus_without_inventing_samples():
+    text = rag.criteria_calculations(
+        "마이크로시스티스가 400이고 아나베나·아파니조메논·오실라토리아가 각각 200 세포/mL면 합계는?",
+        criteria_hits(),
+    )
+    assert "합계 = 1,000 세포/mL" in text
+    assert "추세·공식 발령 사실을 추가하지 않는다" in text
+
+
+def test_alternative_investigation_role_is_kept_without_mixing_water_manager(
+    monkeypatch,
+):
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: [action_hit()])
+    rows = rag.action_rows(None, "상수원", "경계")
+    assert "보건환경연구원장" in rows[0][0]
+    assert rag.matches_role(rows[0][0], "보건환경연구원")
+    assert not rag.matches_role(rows[0][0], "수면관리자")
+
+
+def test_release_lookup_never_reads_supply_issuance_tables(monkeypatch):
+    called = []
+
+    def rows(_, zone, stage):
+        called.append((zone, stage))
+        return [("환경청장", ["대중매체 홍보"], make_hit(1))]
+
+    monkeypatch.setattr(rag, "action_rows", rows)
+    result = rag.lookup_answer(None, "친수활동 해제 후 대중매체 홍보는 누가 해?")
+    assert called == [("친수활동", "해제")]
+    assert "친수활동 구간 해제" in result.answer
+
+
+def test_table_header_is_attached_to_each_matching_value_column():
+    header = "열: 물질 / 제거율 / 제거율"
+    first = replace(
+        make_hit(1), text=header + "\n물질: 물질 | 제거율: 활성탄-A | 제거율: 활성탄-B"
+    )
+    row = replace(
+        make_hit(2), text=header + "\n물질: 2-MIB | 제거율: 79.2 | 제거율: 68.0"
+    )
+    other = replace(
+        make_hit(3),
+        table_id="다른 표",
+        text=header + "\n물질: 독립 표 | 제거율: 1 | 제거율: 2",
+    )
+    merged = retrieve.merge_table_context(row, [first, row, other])
+    assert "제거율(활성탄-A): 79.2 | 제거율(활성탄-B): 68.0" in merged.text
+    assert "독립 표" not in merged.text
+    assert merged.related_chunk_ids == (first.chunk_id,)
+
+
+def test_contact_time_headers_follow_dose_columns():
+    header = "열: 물질 / 투입량 / 투입량 / 투입량"
+    first = replace(
+        make_hit(1),
+        text=header + "\n물질: 물질 | 투입량: 20분 | 투입량: 40분 | 투입량: 60분",
+    )
+    row = replace(
+        make_hit(2), text=header + "\n물질: MIB | 투입량: 15 | 투입량: 10 | 투입량: 5"
+    )
+    merged = retrieve.merge_table_context(row, [first, row])
+    assert "투입량(20분): 15 | 투입량(40분): 10 | 투입량(60분): 5" in merged.text
+
+
+def test_known_prediction_never_erases_the_official_status_caveat():
+    assert rag.drop_false_limits(
+        "예측값만으로 경보 해제 여부를 판단할 자료는 없습니다.", 1.0, object()
+    )
+    assert not rag.drop_false_limits(
+        "구체적인 예측 수치가 공개되지 않았습니다.", 1.0, object()
+    )
+
+
+def test_numeric_boundary_result_cannot_be_rewritten_by_llm(monkeypatch):
+    monkeypatch.setattr(
+        rag,
+        "interpret_question",
+        lambda *_: rag.QuestionPlan(task="criteria", zones=["상수원"]),
+    )
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: criteria_hits())
+    monkeypatch.setattr(rag, "generate", pytest.fail)
+    result = rag.build_answer(
+        None,
+        "상수원의 9,999와 10,000 세포/mL는 같은 단계인가?",
+        None,
+        None,
+        MockPredictor(),
+        MockObservations(),
+    )
+    assert "9,999 세포/mL → 관심 수치 범위" in result.answer
+    assert "10,000 세포/mL → 경계 수치 범위" in result.answer
+    assert not result.raw_output
+
+
+def test_specific_action_direction_preserves_the_source(monkeypatch):
+    hit = replace(
+        action_hit(),
+        text=action_hit().text.replace(
+            "취수구 이동", "조류증식 수심 이하로 취수구 이동"
+        ),
+    )
+    monkeypatch.setattr(
+        rag,
+        "interpret_question",
+        lambda *_: rag.QuestionPlan(
+            task="actions", zones=["상수원"], stages=["경계"], roles=["취수장"]
+        ),
+    )
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: [hit])
+    monkeypatch.setattr(rag, "generate", pytest.fail)
+    result = rag.build_answer(
+        None,
+        "상수원 경계 때 취수구를 얕게 옮기나?",
+        None,
+        None,
+        MockPredictor(),
+        MockObservations(),
+    )
+    assert "조류증식 수심 이하로 취수구 이동" in result.answer
+    assert "정수처리 강화" not in result.answer
+    assert not result.raw_output
+
+
+def test_recreation_zone_name_does_not_turn_criteria_into_actions(monkeypatch):
+    monkeypatch.setattr(
+        rag,
+        "ask_ollama",
+        lambda *_, **__: json.dumps(
+            {"route": "document", "task": "criteria", "wants_actions": False}
+        ),
+    )
+    plan = rag.interpret_question(
+        "친수활동 경계에서 50,000이 두 번이면 관심으로 낮추는 것과 해제가 같아?", False
+    )
+    assert plan.task == "criteria"
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "상수원 예측 중 하루만 10,001이면 매 근무일 발표해?",
+        "원수 2-MIB가 20이면 정수도 같은 초과 상태야?",
+    ],
+)
+def test_treatment_and_forecast_numbers_never_use_cell_count_comparison(
+    monkeypatch, question
+):
+    monkeypatch.setattr(rag, "table_chunks", pytest.fail)
+    assert (
+        rag.numeric_criteria_answer(None, question, rag.QuestionPlan(task="criteria"))
+        is None
+    )
+
+
+def test_no_site_data_does_not_call_llm(monkeypatch):
+    def no_llm(*_, **__):
+        # 질문 해석은 실패로 처리되고, 답변 생성까지 가면 테스트가 실패한다
+        raise rag.LlmError("LLM을 부르지 않아야 한다")
+
+    monkeypatch.setattr(rag, "ask_ollama", no_llm)
+    monkeypatch.setattr(rag, "classify_route", lambda *_: "site")
+
+    class Empty(MockObservations):
+        def cyanocell(self, *_):
+            return None
+
+    class NoForecast(MockPredictor):
+        def predict(self, *_):
+            return None
+
+    result = rag.build_answer(
+        None,
+        "2025년 칠서 세포수와 다음 주 예측값은?",
+        LOCATIONS["CS"],
+        date(2025, 6, 2),
+        NoForecast(),
+        Empty(),
+    )
+
+    assert "모두 없습니다" in result.answer
+    assert "1,000" not in result.answer
+
+
+def test_meaning_and_actions_question_uses_action_table(monkeypatch):
+    monkeypatch.setattr(
+        rag,
+        "interpret_question",
+        lambda *_: rag.QuestionPlan(route="document", task="explain", stages=["경계"]),
+    )
+    monkeypatch.setattr(rag, "table_chunks", lambda *_: [action_hit()])
+    monkeypatch.setattr(rag, "classify_route", lambda *_: "document")
+    monkeypatch.setattr(rag, "ask_ollama", pytest.fail)
+
+    result = rag.build_answer(
+        None,
+        "조류경보 경계 단계의 의미와 대응 조치를 설명해줘",
+        None,
+        None,
+        MockPredictor(),
+        MockObservations(),
+    )
+
+    assert "취수구 이동" in result.answer

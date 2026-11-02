@@ -210,9 +210,12 @@ def run_case(session, case: dict, predictor, observations) -> dict:
             session, case["question"], location, base, predictor, observed
         )
         route = "document"
-        if not answer.raw_output and not answer.evidence:
+        if not answer.raw_output and not answer.evidence and not answer.prompt:
             route = "request"
-        elif json.loads(answer.prompt).get("system") == CONCEPT_SYSTEM:
+        elif (
+            json.loads(answer.prompt).get("system") == CONCEPT_SYSTEM
+            and answer.location is None
+        ):
             route = "concept"
         forecast = answer.forecast
         result.update(
