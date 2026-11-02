@@ -1,0 +1,1469 @@
+[
+  {
+    "id": "Q001",
+    "type": "숫자 경계",
+    "question": "상수원에서 두 번 모두 9,999가 나온 경우와 두 번 모두 10,000 세포/mL가 나온 경우는 같은 경보 단계인가?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "기준",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      }
+    ],
+    "must_say": [
+      "9,999는 관심 범위, 10,000은 경계 범위",
+      "각각 같은 범위로 2회 연속 측정한 가정임을 반영"
+    ],
+    "must_not": [
+      "10,000을 관심으로 분류",
+      "두 경우 모두 실제 발령된 상태라고 확정"
+    ],
+    "why_hard": "상한 미만과 다음 단계 하한 이상을 구별해야 한다",
+    "verified": true
+  },
+  {
+    "id": "Q002",
+    "type": "숫자 경계",
+    "question": "상수원에서 999,999와 1,000,000 세포/mL가 각각 두 차례 연속 관측됐다고 가정하면, 조류대발생 범위에 들어가는 쪽은 어느 쪽이야?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "기준",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      }
+    ],
+    "must_say": [
+      "999,999는 경계 범위",
+      "1,000,000부터 조류대발생 범위"
+    ],
+    "must_not": [
+      "999,999도 조류대발생이라고 답함"
+    ],
+    "why_hard": "백만의 경계에서 이상과 미만을 뒤집기 쉽다",
+    "verified": true
+  },
+  {
+    "id": "Q003",
+    "type": "숫자 경계",
+    "question": "친수활동 구간에서 두 번 모두 99,999인 때와 두 번 모두 100,000 세포/mL인 때, 낚시 안내가 달라지는지 기준과 함께 비교해줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      },
+      {
+        "document_id": "DOC02",
+        "pdf_page": 40
+      },
+      {
+        "document_id": "DOC02",
+        "pdf_page": 41
+      }
+    ],
+    "must_say": [
+      "99,999는 관심, 100,000은 경계 범위",
+      "관심 자제 권고와 경계 금지를 구분"
+    ],
+    "must_not": [
+      "두 경우 모두 자제 권고로만 설명"
+    ],
+    "why_hard": "수치 범위와 해당 단계의 행위 제한을 연결해야 한다",
+    "verified": true
+  },
+  {
+    "id": "Q004",
+    "type": "숫자 경계",
+    "question": "상수원 측정값이 첫째 번 1,000, 둘째 번 10,000이면 두 번 측정했으니 경계 발령 조건이 충족된 거야?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      }
+    ],
+    "must_say": [
+      "각각 관심과 경계 범위라 경계 기준이 2회 연속 충족된 것은 아님"
+    ],
+    "must_not": [
+      "측정 횟수가 두 번이므로 곧바로 경계라고 확정"
+    ],
+    "why_hard": "두 번 측정과 같은 단계 기준을 두 번 연속 충족함은 다르다",
+    "verified": true
+  },
+  {
+    "id": "Q005",
+    "type": "숫자 경계",
+    "question": "상수원에서 999와 1,001이 차례로 나왔어. 평균이 1,000이니까 관심 경보 조건을 충족한 것으로 보면 돼?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      }
+    ],
+    "must_say": [
+      "두 값의 평균으로 연속 측정 조건을 대신하지 않음",
+      "관심 범위가 2회 연속 충족된 것은 아님"
+    ],
+    "must_not": [
+      "평균값만으로 발령 조건을 충족했다고 답함"
+    ],
+    "why_hard": "관측 두 개의 평균과 표의 연속 측정 조건을 구별한다",
+    "verified": true
+  },
+  {
+    "id": "Q006",
+    "type": "숫자 경계",
+    "question": "같은 15,000 세포/mL가 두 번 연속 나왔는데 상수원과 친수활동 구간에 같은 관심 단계를 적용해도 돼?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      }
+    ],
+    "must_say": [
+      "상수원은 경계 범위",
+      "친수활동은 관심 기준인 20,000 미만"
+    ],
+    "must_not": [
+      "두 구간 모두 관심이라고 답함"
+    ],
+    "why_hard": "구간별 기준 차이를 구체적인 같은 값에 적용해야 한다",
+    "verified": true
+  },
+  {
+    "id": "Q007",
+    "type": "단계 전환",
+    "question": "상수원 경계 발령 중에 7,000 세포/mL가 두 번 연속 나왔어. 경보를 완전히 해제하는 건지 관심으로 낮추는 건지 구분해줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      },
+      {
+        "document_id": "DOC02",
+        "pdf_page": 39
+      }
+    ],
+    "must_say": [
+      "7,000은 관심 범위",
+      "관심으로의 하위 단계 전환과 전체 해제를 구분"
+    ],
+    "must_not": [
+      "10,000 미만이면 무조건 전체 해제"
+    ],
+    "why_hard": "해제라는 단어 때문에 표 6의 해제 행만 답하기 쉽다",
+    "verified": true
+  },
+  {
+    "id": "Q008",
+    "type": "단계 전환",
+    "question": "상수원 경계 발령 중에 이번 결과가 900, 다음 결과가 1,500이면 한 번은 1,000 미만이니 해제해도 되나?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      },
+      {
+        "document_id": "DOC02",
+        "pdf_page": 39
+      }
+    ],
+    "must_say": [
+      "1,000 미만이 2회 연속이 아니므로 제시된 두 결과만으로 해제 조건 미충족"
+    ],
+    "must_not": [
+      "한 번만 1,000 미만이면 해제 가능"
+    ],
+    "why_hard": "하락한 한 번의 값과 연속 조건을 동시에 봐야 한다",
+    "verified": true
+  },
+  {
+    "id": "Q009",
+    "type": "단계 전환",
+    "question": "상수원 조류대발생 발령 중인데 800 세포/mL가 두 번 연속 확인됐어. 반드시 경계와 관심을 차례로 거쳐야 해제할 수 있어?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      },
+      {
+        "document_id": "DOC02",
+        "pdf_page": 39
+      }
+    ],
+    "must_say": [
+      "하위 기준에 맞는 단계로 전환한다는 원문 설명",
+      "800은 해제 기준 범위이고 필수적인 순차 경유 규정은 제시되지 않음",
+      "실제 발령권자의 판단과 구분"
+    ],
+    "must_not": [
+      "반드시 경계와 관심을 각각 거쳐야 한다고 지어냄"
+    ],
+    "why_hard": "모든 단계를 반드시 거쳐야 한다는 거짓 전제를 다룬다",
+    "verified": true
+  },
+  {
+    "id": "Q010",
+    "type": "단계 전환",
+    "question": "친수활동 경계 발령 뒤 50,000이 두 번 나왔어. 관심으로 바뀌는 것과 경보가 해제되는 것은 같은 말이야?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      },
+      {
+        "document_id": "DOC02",
+        "pdf_page": 41
+      }
+    ],
+    "must_say": [
+      "50,000은 친수활동 관심 범위",
+      "관심 전환은 20,000 미만 해제와 다름"
+    ],
+    "must_not": [
+      "100,000 미만이면 전체 해제"
+    ],
+    "why_hard": "경계 기준 미만과 해제 기준 미만을 혼동하기 쉽다",
+    "verified": true
+  },
+  {
+    "id": "Q011",
+    "type": "단계 전환",
+    "question": "상수원에서 해제 수치가 두 번 연속 나와도 강우 예보가 있으면 발령권자가 해제를 보류할 여지가 있어? 수치 충족이 자동 해제인지 궁금해.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "기준",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      }
+    ],
+    "must_say": [
+      "표 6 비고에 기상상황을 고려해 발령·해제하지 않을 수 있음"
+    ],
+    "must_not": [
+      "수치를 충족하면 언제나 자동으로 해제"
+    ],
+    "why_hard": "숫자 행뿐 아니라 비고의 예외 조건을 읽어야 한다",
+    "verified": true
+  },
+  {
+    "id": "Q012",
+    "type": "구간 교차",
+    "question": "친수활동 구간에서 3,000,000 세포/mL가 두 번 나오면 조류대발생으로 한 단계를 더 올리는 기준이 따로 있어?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "기준",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      }
+    ],
+    "must_say": [
+      "친수활동 구간에는 별도 조류대발생 단계 행이 없음",
+      "상수원 대발생 기준을 옮기지 않음"
+    ],
+    "must_not": [
+      "친수활동도 1,000,000 이상이면 조류대발생"
+    ],
+    "why_hard": "상수원에만 있는 단계를 다른 구간으로 확장하는지 본다",
+    "verified": true
+  },
+  {
+    "id": "Q013",
+    "type": "구간 교차",
+    "question": "친수활동 관심 단계의 표에 취수장·정수장 관리자 업무가 별도 행으로 적혀 있어? 없다면 상수원 표를 대신 정답처럼 쓰지 말아줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 40
+      }
+    ],
+    "must_say": [
+      "표 11에는 해당 관리자 별도 행이 없음을 밝힘"
+    ],
+    "must_not": [
+      "상수원 표 7의 정수처리 강화를 친수활동 표 11의 행이라고 제시"
+    ],
+    "why_hard": "표에 없는 구간·기관 조합을 그럴듯하게 채우기 쉽다",
+    "verified": true
+  },
+  {
+    "id": "Q014",
+    "type": "구간 교차",
+    "question": "친수활동 경계 단계에서 한국수자원공사가 댐 방류량을 조정한다는 내용이 해당 구간의 조치 표에 명시돼 있나?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 41
+      }
+    ],
+    "must_say": [
+      "친수활동 표 12에 한국수자원공사 행이나 방류량 조정은 없음"
+    ],
+    "must_not": [
+      "상수원 조류대발생 표의 방류량 조정을 친수활동 표의 지시로 답함"
+    ],
+    "why_hard": "같은 단계와 익숙한 기관명이 있어도 다른 구간의 행을 쓰면 안 된다",
+    "verified": true
+  },
+  {
+    "id": "Q015",
+    "type": "구간 교차",
+    "question": "낚시에 대한 안내를 비교하려고 해. 상수원 경계와 친수활동 경계는 둘 다 금지인가, 자제 권고인가?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 38
+      },
+      {
+        "document_id": "DOC02",
+        "pdf_page": 41
+      }
+    ],
+    "must_say": [
+      "상수원 경계는 자제 권고와 공지",
+      "친수활동 경계는 금지와 공지"
+    ],
+    "must_not": [
+      "두 구간 모두 같은 강도로 답함"
+    ],
+    "why_hard": "같은 경계라는 이름 아래 조치 강도가 다르다",
+    "verified": true
+  },
+  {
+    "id": "Q016",
+    "type": "구간 교차",
+    "question": "관심 단계 조사 항목을 상수원과 친수활동에서 똑같이 남조류·클로로필a만으로 적어도 돼? 냄새물질과 독소도 확인해줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 36
+      },
+      {
+        "document_id": "DOC02",
+        "pdf_page": 40
+      }
+    ],
+    "must_say": [
+      "상수원 표 7은 남조류 세포수와 클로로필 a",
+      "친수활동 표 11에는 냄새물질과 독소도 명시"
+    ],
+    "must_not": [
+      "관심 단계는 어느 구간이나 독소 항목이 없다고 답함"
+    ],
+    "why_hard": "구간에 따른 분석 항목 차이는 일반 단계 요약으로 놓치기 쉽다",
+    "verified": true
+  },
+  {
+    "id": "Q017",
+    "type": "기관·조치 비교",
+    "question": "상수원에서 물환경연구소의 관심 단계 업무가 경계 단계로 바뀌면 분석 주기와 항목이 어떻게 늘어나?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 36
+      },
+      {
+        "document_id": "DOC02",
+        "pdf_page": 37
+      }
+    ],
+    "must_say": [
+      "관심 주 1회 이상에서 경계 주 2회 이상",
+      "경계에서는 냄새물질·독소 항목 추가",
+      "분석 결과 발령기관 통보"
+    ],
+    "must_not": [
+      "단계가 달라도 분석 주기와 항목이 같음"
+    ],
+    "why_hard": "두 표에서 같은 기관의 행을 정확히 맞춰 비교한다",
+    "verified": true
+  },
+  {
+    "id": "Q018",
+    "type": "기관·조치 비교",
+    "question": "상수원의 환경청 담당자에게 설명하려고 해. 관심·경계·조류대발생에서 주변 오염원과 레저 활동에 대한 조치 강도는 어떻게 달라져?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 36
+      },
+      {
+        "document_id": "DOC02",
+        "pdf_page": 38
+      },
+      {
+        "document_id": "DOC02",
+        "pdf_page": 39
+      }
+    ],
+    "must_say": [
+      "관심 지도·단속",
+      "경계 단속 강화와 친수활동 자제 권고",
+      "대발생 지속적인 단속 강화와 금지"
+    ],
+    "must_not": [
+      "처음부터 모든 단계에 금지를 적용"
+    ],
+    "why_hard": "세 단계에서 같은 기관의 정책 강도를 연결해야 한다",
+    "verified": true
+  },
+  {
+    "id": "Q019",
+    "type": "기관·조치 비교",
+    "question": "상수원 경계에서 남조류·클로로필a·냄새물질·독소 시료분석과 정수의 독소분석은 같은 기관의 업무야? 두 업무의 담당을 나눠줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 37
+      }
+    ],
+    "must_say": [
+      "주 2회 시료 채취·분석은 물환경연구소장 등",
+      "정수의 독소분석은 취수장·정수장 관리자"
+    ],
+    "must_not": [
+      "두 업무를 모두 취수장 관리자 또는 모두 물환경연구소 업무로 묶음"
+    ],
+    "why_hard": "독소분석이라는 공통 표현 때문에 서로 다른 행이 섞인다",
+    "verified": true
+  },
+  {
+    "id": "Q020",
+    "type": "기관·조치 비교",
+    "question": "시·도지사가 상수원 관심 경보를 발령하는 경우, 표의 물환경연구소장 옆 괄호는 무엇을 뜻하며 누가 조사기관 역할을 맡아?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 36
+      }
+    ],
+    "must_say": [
+      "괄호는 시·도지사가 발령하는 경우의 관계기관",
+      "시·도 보건환경연구원장 또는 수면관리자"
+    ],
+    "must_not": [
+      "시·도지사가 직접 모든 시료를 분석한다고 답함"
+    ],
+    "why_hard": "표의 괄호와 각주를 기관명에 함께 적용해야 한다",
+    "verified": true
+  },
+  {
+    "id": "Q021",
+    "type": "기관·조치 비교",
+    "question": "한국환경공단의 상수원 관심 단계 업무와 경계 단계 업무를 비교해줘. 합동점검 지원이 두 단계에 모두 같은 문구로 있어?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 36
+      },
+      {
+        "document_id": "DOC02",
+        "pdf_page": 38
+      }
+    ],
+    "must_say": [
+      "관심은 자동측정자료 모니터링·조류 예방/제거 지원",
+      "경계에 관계기관 합동점검 시 지원과 모니터링 강화 명시"
+    ],
+    "must_not": [
+      "관심 표에도 합동점검 지원이 같은 문구로 있다고 답함"
+    ],
+    "why_hard": "익숙한 기관의 일반 역할로 표의 단계 차이를 덮기 쉽다",
+    "verified": true
+  },
+  {
+    "id": "Q022",
+    "type": "기관·조치 비교",
+    "question": "친수활동 경보가 해제된 뒤 시험분석 결과 통보와 대중매체 홍보는 각각 누가 맡는지 두 역할만 나눠줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "조치",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 42
+      }
+    ],
+    "must_say": [
+      "결과 통보는 물환경연구소장 등",
+      "경보 해제·홍보는 유역·지방 환경청장 또는 시·도지사"
+    ],
+    "must_not": [
+      "결과 통보와 홍보를 모두 정수장 관리자의 업무로 답함"
+    ],
+    "why_hard": "해제 수치가 아니라 해제 후 절차를 묻는 질문이다",
+    "verified": true
+  },
+  {
+    "id": "Q023",
+    "type": "표현 흔들기",
+    "question": "친 수 활 동 구간에 관 심 경보가 떴대. 주민에게 낚시를 아예 금지한다고 써야 해, 자제해 달라고 써야 해?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 40
+      }
+    ],
+    "must_say": [
+      "관심 단계에서는 자제 권고와 공지"
+    ],
+    "must_not": [
+      "띄어쓰기 때문에 경계를 적용해 금지로 답함"
+    ],
+    "why_hard": "구간과 단계 이름에 띄어쓰기를 넣어 단어 분기를 흔든다",
+    "verified": true
+  },
+  {
+    "id": "Q024",
+    "type": "표현 흔들기",
+    "question": "상수원에 조류 대발쌩이 났대. 수면관리자가 차단막 말고 추가로 할 일도 있나?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 39
+      }
+    ],
+    "must_say": [
+      "오타를 대발생으로 이해",
+      "황토 등 제거물질 살포·조류 제거선 이용"
+    ],
+    "must_not": [
+      "관심 단계의 차단막만 답함"
+    ],
+    "why_hard": "단계 오타가 코드의 정확 문자열과 다르다",
+    "verified": true
+  },
+  {
+    "id": "Q025",
+    "type": "표현 흔들기",
+    "question": "상수원 경계 떴을 때 수도물 맡은 사람이 취수구를 더 얕게 옮기는 거야, 녹조가 자라는 깊이보다 아래로 옮기는 거야?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 37
+      }
+    ],
+    "must_say": [
+      "취수장·정수장 관리자에게 해당",
+      "조류증식 수심 이하로 취수구 이동"
+    ],
+    "must_not": [
+      "수표면 가까이 더 얕게 이동"
+    ],
+    "why_hard": "기관을 구어체로 바꾸고 방향의 반대 선택지를 넣었다",
+    "verified": true
+  },
+  {
+    "id": "Q026",
+    "type": "표현 흔들기",
+    "question": "상수원 녹조 개체수가 잇달아 12,000씩 나왔는데 이걸 관심으로 적으면 되나? 세포수 기준으로 판단해줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      }
+    ],
+    "must_say": [
+      "12,000은 경계 범위",
+      "2회 연속 가정 및 실제 발령과 범위 판단 구분"
+    ],
+    "must_not": [
+      "개체수라는 말 때문에 관심으로 답함"
+    ],
+    "why_hard": "동의어와 구어체를 공식 세포수 구간에 연결해야 한다",
+    "verified": true
+  },
+  {
+    "id": "Q027",
+    "type": "표현 흔들기",
+    "question": "독소분석, 경계, 상수원. 이 일은 정수장 쪽이야 물환경연구소 쪽이야? 정수와 원수 시료를 구분해서 답해줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 37
+      }
+    ],
+    "must_say": [
+      "정수 독소분석과 주 2회 시료분석의 담당 구분"
+    ],
+    "must_not": [
+      "기관 하나만 골라 나머지 업무를 지움"
+    ],
+    "why_hard": "단어 순서를 흔들고 두 기관을 동시에 제시한다",
+    "verified": true
+  },
+  {
+    "id": "Q028",
+    "type": "표현 흔들기",
+    "question": "친수활동 구간 경계인데 워터스키를 잠깐 타는 건 자제 권고 정도라 괜찮다고 안내하면 돼?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 41
+      }
+    ],
+    "must_say": [
+      "워터스키를 수상스키에 해당하는 활동으로 이해",
+      "경계 단계는 금지와 공지"
+    ],
+    "must_not": [
+      "자제 권고일 뿐이라고 동의"
+    ],
+    "why_hard": "동의어와 잘못된 행동 전제를 함께 넣었다",
+    "verified": true
+  },
+  {
+    "id": "Q029",
+    "type": "단어 함정",
+    "question": "정수장에 관심 있는 업체가 활성탄을 납품한다는데, 이번 조류경보 대응 예산과 톤당 구매 가격이 얼마인지 알려줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [],
+    "must_say": [
+      "자료에 없음을 밝힘"
+    ],
+    "must_not": [
+      "관심 단계 세포수나 임의의 예산·가격을 정답으로 제시"
+    ],
+    "why_hard": "관심·얼마가 있지만 경보 단계 수치를 묻지 않는다",
+    "verified": false,
+    "verification_note": "고정 자료에 해당 계약·예산 정답을 확인하지 못해 수치 정답 미작성"
+  },
+  {
+    "id": "Q030",
+    "type": "단어 함정",
+    "question": "상수원 경보 해제 후 후속 절차만 물을게. 분석 결과를 누구에게 보내고 누가 언론에 알리는지 알려줘. 세포수 기준은 필요 없어.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "조치",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 40
+      }
+    ],
+    "must_say": [
+      "분석 결과를 발령기관으로 통보",
+      "환경청장 또는 시·도지사가 해제와 대중매체 홍보"
+    ],
+    "must_not": [
+      "해제 기준 숫자만 나열하고 후속 역할을 빠뜨림"
+    ],
+    "why_hard": "해제라는 단어가 기준 경로를 먼저 잡아챌 수 있다",
+    "verified": true
+  },
+  {
+    "id": "Q031",
+    "type": "단어 함정",
+    "question": "업무 지시에서 경계심을 갖고 냄새 민원을 살피라고 했어. 이 말만으로 공식 조류경보 경계 단계가 발령됐다고 볼 수 있나?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [],
+    "must_say": [
+      "공식 발령 자료 없이는 발령 상태를 확정하지 않음"
+    ],
+    "must_not": [
+      "경계심이라는 단어를 경계 단계 발령 증거로 취급"
+    ],
+    "why_hard": "경계라는 부분 문자열이 공식 단계와 다른 뜻이다",
+    "verified": false,
+    "verification_note": "언어적 상황에 대한 정답이 PDF에 직접 제시되지 않아 발령 단정 여부만 검토"
+  },
+  {
+    "id": "Q032",
+    "type": "단어 함정",
+    "question": "내가 관심 있는 지점은 칠곡보야. 그 지점의 위도·경도를 소수점 여섯 자리로 알려줘.",
+    "turns": [],
+    "location": "CGB",
+    "base_date": "2023-08-07",
+    "route": "문서",
+    "expected": [],
+    "must_say": [
+      "자료에 없음을 밝힘"
+    ],
+    "must_not": [
+      "관심 단계 조치를 답하거나 좌표를 지어냄"
+    ],
+    "why_hard": "관심 있는 지점이라는 표현이 관심 단계가 아니다",
+    "verified": false,
+    "verification_note": "고정 관측·예측 입력에서 지점 좌표의 정답을 확인하지 못함"
+  },
+  {
+    "id": "Q033",
+    "type": "단어 함정",
+    "question": "친수활동 출입금지를 해제했다고 공지한 뒤 현수막은 정확히 며칠 안에 철거해야 해?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 42
+      }
+    ],
+    "must_say": [
+      "자료에 정해진 철거 일수를 확인할 수 없음을 밝힘"
+    ],
+    "must_not": [
+      "해제 세포수로 답하거나 임의의 일수를 정함"
+    ],
+    "why_hard": "해제라는 단어가 있어도 묻는 값은 철거 기한이다",
+    "verified": false,
+    "verification_note": "표 13의 홍보 조치는 확인했으나 철거 일수 정답은 확인하지 못함"
+  },
+  {
+    "id": "Q034",
+    "type": "단어 함정",
+    "question": "상수원 경계 단계의 활동 자제 권고를 어겼을 때 내는 과태료가 얼마인지 이 매뉴얼로 확인해줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [],
+    "must_say": [
+      "자료에 없음을 밝힘"
+    ],
+    "must_not": [
+      "10,000 같은 세포수를 과태료로 답함",
+      "금액·법 조항을 지어냄"
+    ],
+    "why_hard": "경계·얼마가 모두 있지만 표 6의 기준값 질문이 아니다",
+    "verified": false,
+    "verification_note": "이 pilot에서는 법령 전반의 처벌 여부를 판정하지 않고 제공 자료에서 금액을 확인할 수 있는지만 본다"
+  },
+  {
+    "id": "Q035",
+    "type": "조류예측",
+    "question": "상수원 예측값이 200,000 세포/mL면 예측 3단계인데, 실제 측정에 적용하는 경보 이름도 3단계로 발령된다는 뜻이야?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC01",
+        "pdf_page": 174
+      },
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      }
+    ],
+    "must_say": [
+      "예측 3단계 범위와 실제 경보 체계 구분",
+      "실제 측정 200,000은 경계 범위지만 예측으로 공식 발령 단정 불가"
+    ],
+    "must_not": [
+      "공식 경보 3단계가 자동 발령됐다고 답함"
+    ],
+    "why_hard": "예측 숫자 단계와 경보 이름이 일대일 대응하지 않는다",
+    "verified": true
+  },
+  {
+    "id": "Q036",
+    "type": "조류예측",
+    "question": "조류예측 3단계와 4단계의 세포수 구간을 친수활동에도 상수원과 똑같이 적용하는 표가 있어?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "예측 단계",
+    "expected": [
+      {
+        "document_id": "DOC01",
+        "pdf_page": 174
+      }
+    ],
+    "must_say": [
+      "상수원 3단계 100,000~1,000,000 미만, 4단계 1,000,000 이상",
+      "친수활동 두 칸은 해당 없음"
+    ],
+    "must_not": [
+      "친수활동 3·4단계 범위를 새로 만듦"
+    ],
+    "why_hard": "표의 대시를 값 누락이 아닌 해당 없음으로 읽어야 한다",
+    "verified": true
+  },
+  {
+    "id": "Q037",
+    "type": "조류예측",
+    "question": "상수원 향후 7일 예측 중 하루만 10,001이고 나머지는 모두 1,000 미만이라 주간 평균은 낮아. 그래도 매 근무일 발표 조건에 걸려?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC01",
+        "pdf_page": 174
+      }
+    ],
+    "must_say": [
+      "하루라도 상수원 경계 기준을 초과하면 매 근무일 발표",
+      "평균으로 조건을 대체하지 않음"
+    ],
+    "must_not": [
+      "7일 평균이 낮으므로 월·목만 발표"
+    ],
+    "why_hard": "발표 예외는 평균이 아니라 하루라도 기준을 초과하는 조건이다",
+    "verified": true
+  },
+  {
+    "id": "Q038",
+    "type": "조류예측",
+    "question": "2024 연차보고서에 적힌 정규 조류예측 운영을 기준으로 11월에도 월·목 17시 발표가 보장된다고 써도 돼? 적용 기간을 확인해줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC01",
+        "pdf_page": 174
+      }
+    ],
+    "must_say": [
+      "그 보고서의 기간은 5~10월",
+      "11월 정규 발표가 보장된다고 확대하지 않음"
+    ],
+    "must_not": [
+      "연중 무조건 월·목 발표"
+    ],
+    "why_hard": "발표 요일만 기억하고 적용 기간을 빠뜨리기 쉽다",
+    "verified": true
+  },
+  {
+    "id": "Q039",
+    "type": "정수 처리",
+    "question": "접촉지가 부족해서 분말활성탄 접촉시간을 10분만 확보하려고 해. 가이드라인의 최소 시간과 충분한 효과를 위한 권장 시간을 구분해줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC03",
+        "pdf_page": 10
+      },
+      {
+        "document_id": "DOC03",
+        "pdf_page": 34
+      }
+    ],
+    "must_say": [
+      "적어도 20분 이상",
+      "충분한 처리효과를 위해 1시간 정도가 바람직",
+      "주입지점·혼화와 접촉 확보 고려"
+    ],
+    "must_not": [
+      "10분이면 최소 조건 충족",
+      "최소 1시간만이 유일한 기준"
+    ],
+    "why_hard": "최소 시간과 바람직한 시간을 구분해야 한다",
+    "verified": true
+  },
+  {
+    "id": "Q040",
+    "type": "정수 처리",
+    "question": "분말활성탄 1 mg/L와 전염소를 같은 지점에서 동시에 넣으면 손실이 없나? 염소 소비량과 투입 간격의 이유를 문서로 확인해줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC03",
+        "pdf_page": 37
+      }
+    ],
+    "must_say": [
+      "활성탄 1 mg/L는 염소 약 0.2~0.25 mg/L 소비",
+      "동시 주입에 따른 손실·흡착효율 저하로 간격 필요"
+    ],
+    "must_not": [
+      "동시 주입해도 서로 영향이 없음"
+    ],
+    "why_hard": "같은 문장의 물질·단위를 바꿔 읽으면 반대로 답한다",
+    "verified": true
+  },
+  {
+    "id": "Q041",
+    "type": "정수 처리",
+    "question": "분말활성탄 제거시험 표에서 탁도 98.8인 원수의 2-MIB 제거율은 활성탄 A와 B가 각각 얼마야? 탁도 1.8 행과 구분하고 시험 조건도 같이 알려줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC03",
+        "pdf_page": 10
+      }
+    ],
+    "must_say": [
+      "탁도 98.8의 2-MIB: A 79.2%, B 68.0%",
+      "탁도 1.8의 2-MIB: A 93.5%, B 90.9%",
+      "분말활성탄 20 mg/L, 접촉 20분, 응집제 20 mg/L의 예시 시험"
+    ],
+    "must_not": [
+      "지오스민 94.6/93.1을 2-MIB 값으로 답함",
+      "모든 현장에 보장되는 효율로 일반화"
+    ],
+    "why_hard": "행·열·물질·원수 조건을 동시에 맞춰야 한다",
+    "verified": true
+  },
+  {
+    "id": "Q042",
+    "type": "정수 처리",
+    "question": "가이드라인의 2-MIB 표에서 오존 단독과 입상활성탄 단독 중 제거율이 높은 쪽은 어디야? 조합 처리와 시험 수온·접촉 조건도 나눠줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC03",
+        "pdf_page": 12
+      }
+    ],
+    "must_say": [
+      "오존 83~88%, 입상활성탄 96~97%, 조합 약 100%",
+      "수온 25도, 오존 1 mg/L·30분, 입상활성탄 EBCT 15분 등 해당 시험 조건"
+    ],
+    "must_not": [
+      "분말활성탄의 약 50%를 입상활성탄 단독 값으로 답함",
+      "모든 수온·원수에서 100%라고 보장"
+    ],
+    "why_hard": "효율 비교에 시험 조건을 붙여 단순 암기 답변을 막는다",
+    "verified": true
+  },
+  {
+    "id": "Q043",
+    "type": "정수 처리",
+    "question": "흐름도에서 원수 2-MIB가 딱 20 ng/L이면 대응을 시작하는데, 처리 후 정수 2-MIB도 딱 20이고 마이크로시스틴도 딱 1 ug/L면 주민공지를 해야 하는 같은 초과 상태야?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC03",
+        "pdf_page": 14
+      }
+    ],
+    "must_say": [
+      "원수 징후 기준은 20 이상",
+      "처리 후 정수 기준은 2-MIB 20 이하·마이크로시스틴 1 이하",
+      "제시한 정수 값은 해당 수치 기준 충족으로 모니터링 분기"
+    ],
+    "must_not": [
+      "원수와 정수의 등호 방향을 같게 취급",
+      "정수가 정확히 기준값이어도 반드시 주민공지"
+    ],
+    "why_hard": "한 흐름도 안에서 원수의 이상과 정수의 이하가 반대다",
+    "verified": true
+  },
+  {
+    "id": "Q044",
+    "type": "정수 처리",
+    "question": "분말활성탄 슬러리 2.5~5%와 맛·냄새 처리 투입량 10~30 mg/L가 같은 숫자 단위의 농도인가? 각 값이 무엇을 가리키는지 구분해줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC03",
+        "pdf_page": 34
+      }
+    ],
+    "must_say": [
+      "2.5~5%는 건조중량 환산 슬러리액 농도",
+      "10~30 mg/L는 맛·냄새 처리 시 보통 투입하는 건조중량 기준 양",
+      "주입률은 jar-test 등으로 결정"
+    ],
+    "must_not": [
+      "슬러리액 자체를 10~30%로 해석"
+    ],
+    "why_hard": "저장 슬러리 농도와 원수에 대한 투입량을 구분한다",
+    "verified": true
+  },
+  {
+    "id": "Q045",
+    "type": "정수 처리",
+    "question": "남조류 때문에 중염소로 전환하려는데 암모니아성질소·철·망간도 많이 들어와. 전염소를 무조건 완전히 끊으라는 뜻이야?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC03",
+        "pdf_page": 10
+      },
+      {
+        "document_id": "DOC03",
+        "pdf_page": 11
+      },
+      {
+        "document_id": "DOC03",
+        "pdf_page": 37
+      }
+    ],
+    "must_say": [
+      "고농도 유입 시 전염소 중단으로 제거가 어려울 수 있음",
+      "염소소비량을 고려한 저감 등 문서의 예외를 함께 설명"
+    ],
+    "must_not": [
+      "남조류가 있으면 조건과 관계없이 전염소 전면 중단"
+    ],
+    "why_hard": "기본 대응과 동시 유입 물질의 예외를 함께 적용해야 한다",
+    "verified": true
+  },
+  {
+    "id": "Q046",
+    "type": "지점 시나리오",
+    "question": "칠서의 2023-07-17은 남조류 관측이 비어 있던데, 다음 주 예측값으로 그날 관측값까지 채워서 경보 단계를 확정해도 돼?",
+    "turns": [],
+    "location": "CS",
+    "base_date": "2023-07-17",
+    "route": "문서",
+    "expected": [],
+    "must_say": [
+      "관측 결측과 예측을 구분",
+      "예측으로 관측 결측을 채웠다고 주장하거나 공식 발령 확정하지 않음"
+    ],
+    "must_not": [
+      "결측을 0으로 간주",
+      "다음 주 예측을 당일 실측으로 사용"
+    ],
+    "why_hard": "실측 결측을 저장 예측으로 대체하는 누출을 살핀다",
+    "verified": false,
+    "verification_note": "CSV의 해당 주 관측 결측은 별도로 확인했다. 지점별 수치는 PDF 정답이 아니므로 verified=false"
+  },
+  {
+    "id": "Q047",
+    "type": "지점 시나리오",
+    "question": "칠서 2023-01-09처럼 관측 세포수가 경보 기준 미만인 주에는 차단막·활성탄 강화 조치를 경계 단계처럼 표시해야 해? 실제 발령 여부도 알 수 있어?",
+    "turns": [],
+    "location": "CS",
+    "base_date": "2023-01-09",
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      }
+    ],
+    "must_say": [
+      "측정값 범위와 실제 발령 상태를 구분",
+      "기준 미만 측정을 경계 단계로 바꾸거나 실제 미발령을 단정하지 않음"
+    ],
+    "must_not": [
+      "관측이 낮으므로 실제 경보는 발령되지 않았다고 단정"
+    ],
+    "why_hard": "낮은 관측값과 공식 미발령은 다른 사실이다",
+    "verified": false,
+    "verification_note": "원본 CSV의 관측값은 0임을 확인했으나 PDF에 지점별 정답이 없어 수치 정답으로는 고정하지 않음"
+  },
+  {
+    "id": "Q048",
+    "type": "지점 시나리오",
+    "question": "칠곡보 2023-08-07 자료를 보면서 친수활동 구간임이 확인됐다고 단정하고 그 기준만 적용해도 돼? 구간을 아는지부터 답해줘.",
+    "turns": [],
+    "location": "CGB",
+    "base_date": "2023-08-07",
+    "route": "문서",
+    "expected": [],
+    "must_say": [
+      "구간이 확인되지 않았다는 한계",
+      "상수원 기준으로 표시하는 모델 구간과 실제 구간 확정을 구분"
+    ],
+    "must_not": [
+      "칠곡보의 실제 구간을 임의로 확정"
+    ],
+    "why_hard": "숫자나 이름만으로 구간을 단정하게 만드는 전제다",
+    "verified": false,
+    "verification_note": "앱 지점 매핑은 구간 미확인이다. PDF에서 실제 구간을 확정하지 않았으므로 해당 구간의 정답을 만들지 않음"
+  },
+  {
+    "id": "Q049",
+    "type": "지점 시나리오",
+    "question": "칠서 2023-06-12 관측은 경계 범위인데 다음 주 중앙값은 관심 범위잖아. 그 예측만으로 다음 주 공식 경보가 해제된다고 공지해도 돼?",
+    "turns": [],
+    "location": "CS",
+    "base_date": "2023-06-12",
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      },
+      {
+        "document_id": "DOC02",
+        "pdf_page": 39
+      }
+    ],
+    "must_say": [
+      "관측과 예측 시점·범위의 차이",
+      "관심 범위 예측은 해제와 다르고 공식 발령 자료도 없음"
+    ],
+    "must_not": [
+      "예측 중앙값이 낮으므로 공식 해제를 확정"
+    ],
+    "why_hard": "자료 두 종류·시점·경보 전환을 동시에 구분해야 한다",
+    "verified": true
+  },
+  {
+    "id": "Q050",
+    "type": "지점 시나리오",
+    "question": "칠서 2023-06-12의 남조류가 늘어난 원인이 그 주 상류 공장의 인 배출 증가였다고 단정할 수 있어? 원인 증거와 관측의 동시 변화를 나눠 설명해줘.",
+    "turns": [],
+    "location": "CS",
+    "base_date": "2023-06-12",
+    "route": "문서",
+    "expected": [],
+    "must_say": [
+      "제공된 관측으로 특정 공장의 배출 증가와 인과를 확정할 수 없음을 밝힘"
+    ],
+    "must_not": [
+      "관측 상관만으로 특정 공장을 원인으로 지목"
+    ],
+    "why_hard": "현상 요약에서 외부 오염원 인과 추정으로 넘어가는지를 본다",
+    "verified": false,
+    "verification_note": "특정 공장의 배출자료 정답은 제공된 자료에서 확인하지 못함"
+  },
+  {
+    "id": "Q051",
+    "type": "연속 질문",
+    "question": "그럼 경계로 바뀌면 아까 말한 낚시는 여전히 권고야, 금지야?",
+    "turns": [
+      "친수활동 관심 단계에서 환경청은 주민의 낚시를 어떻게 안내하나?"
+    ],
+    "location": null,
+    "base_date": null,
+    "route": "조치",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 40
+      },
+      {
+        "document_id": "DOC02",
+        "pdf_page": 41
+      }
+    ],
+    "must_say": [
+      "친수활동 구간을 이어받음",
+      "관심 자제 권고에서 경계 금지로 변경"
+    ],
+    "must_not": [
+      "상수원 경계 자제 권고로 바꿔 답함"
+    ],
+    "why_hard": "대상을 생략한 채 단계만 바꿔도 구간을 유지해야 한다",
+    "verified": true
+  },
+  {
+    "id": "Q052",
+    "type": "연속 질문",
+    "question": "그 답에서 이번 주 날짜와 다음 주 날짜를 각각 다시 확인해줘. 관측의 기준일이 예측 주로 밀리면 안 돼.",
+    "turns": [
+      "칠서 2023-06-12의 관측과 다음 주 전망을 비교해줘."
+    ],
+    "location": null,
+    "base_date": null,
+    "route": "연속 질문",
+    "expected": [],
+    "must_say": [
+      "앞 대화의 기준일과 예측 대상일을 구분해 유지"
+    ],
+    "must_not": [
+      "앞 답의 다음 주 날짜를 새 기준일로 자동 이동"
+    ],
+    "why_hard": "앞 답에 두 날짜가 있을 때 재작성이 미래 날짜를 기준일로 고를 수 있다",
+    "verified": false,
+    "verification_note": "날짜 기대값은 CSV·앱의 주 단위 계약으로 확인하며 PDF 정답 검증 항목은 아님"
+  },
+  {
+    "id": "Q053",
+    "type": "연속 질문",
+    "question": "그럼 칠곡보로 바꿔서 같은 기준 주의 관측과 다음 주 예측을 비교해줘.",
+    "turns": [
+      "칠서 2023-06-12의 관측과 다음 주 예측을 보여줘."
+    ],
+    "location": null,
+    "base_date": null,
+    "route": "연속 질문",
+    "expected": [],
+    "must_say": [
+      "지점은 칠곡보로 변경하고 기준 주는 앞 대화에서 유지",
+      "칠서 수치를 재사용하지 않음"
+    ],
+    "must_not": [
+      "지점이 칠서로 남음",
+      "예측 대상 주를 기준일로 바꿈"
+    ],
+    "why_hard": "대화의 날짜는 유지하면서 지점만 명시적으로 바꿔야 한다",
+    "verified": false,
+    "verification_note": "지점 변경과 날짜 유지의 기대값은 원본 CSV로 별도 확인한다. PDF 지점 수치를 정답으로 작성하지 않음"
+  },
+  {
+    "id": "Q054",
+    "type": "연속 질문",
+    "question": "상수원 경계 단계에서 한국환경공단은 어떤 합동점검을 지원하나?",
+    "turns": [
+      "친수활동 관심 단계에서 환경청의 역할을 알려줘."
+    ],
+    "location": null,
+    "base_date": null,
+    "route": "조치",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 38
+      }
+    ],
+    "must_say": [
+      "새 독립 질문의 상수원·경계·한국환경공단을 그대로 유지",
+      "환경기초시설 및 폐수배출사업장 관계기관 합동점검 시 지원"
+    ],
+    "must_not": [
+      "앞 대화의 친수활동 관심 단계로 바꿔 답함"
+    ],
+    "why_hard": "완전한 새 질문을 앞 대화에 맞춰 불필요하게 재작성하는지 본다",
+    "verified": true
+  },
+  {
+    "id": "Q055",
+    "type": "연속 질문",
+    "question": "이제 통계 질문이야. 분포가 한쪽으로 치우쳐 있어도 50% 분위수는 정의할 수 있지? 대칭일 필요가 있는지도 구분해줘.",
+    "turns": [
+      "분말활성탄의 접촉시간과 주입지점을 어떻게 잡아야 해?",
+      "전염소를 동시에 넣지 말라는 이유도 알려줘."
+    ],
+    "location": null,
+    "base_date": null,
+    "route": "일반 원리",
+    "expected": [],
+    "must_say": [
+      "주제 전환을 따라 일반 개념으로 답함"
+    ],
+    "must_not": [
+      "활성탄·전염소 조치를 계속 답함"
+    ],
+    "why_hard": "명시적인 독립 주제 전환을 앞 대화가 훼손하지 않아야 한다",
+    "verified": false,
+    "verification_note": "통계적 정답은 이 세 PDF에서 직접 확인하지 못해 정답 확정과 내용 점수 부여는 보류한다"
+  },
+  {
+    "id": "Q056",
+    "type": "일반 원리 경계",
+    "question": "마이크로시스티스가 400이고 아나베나·아파니조메논·오실라토리아가 각각 200 세포/mL면, 상수원 경보에서 비교할 합계는 얼마이고 한 번 측정으로 발령할 수 있어?",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [
+      {
+        "document_id": "DOC02",
+        "pdf_page": 34
+      }
+    ],
+    "must_say": [
+      "네 속의 합은 1,000 세포/mL",
+      "상수원 관심 하한에 해당하지만 한 번만으로 2회 연속 조건 미충족"
+    ],
+    "must_not": [
+      "일반 개념 설명만 하고 공식 합산 범위·횟수를 누락"
+    ],
+    "why_hard": "산술처럼 보이지만 공식 합산 대상과 발령 조건이 필요한 질문이다",
+    "verified": true
+  },
+  {
+    "id": "Q057",
+    "type": "일반 원리 경계",
+    "question": "물이 초록색이면 남조류 독소도 검출됐다고 확정해도 돼? 눈에 보이는 색과 독소 확인은 같은 증거인지 궁금해.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "일반 원리",
+    "expected": [],
+    "must_say": [
+      "일반 원리로 답하는지와 근거 없는 독소 검출 단정을 점검"
+    ],
+    "must_not": [
+      "색만 보고 특정 독소 검출 농도를 지어냄"
+    ],
+    "why_hard": "일반 현상 설명을 검사 결과의 확정으로 바꾸지 않아야 한다",
+    "verified": false,
+    "verification_note": "이 문장에 대한 직접 정답 근거를 PDF에서 확인하지 못해 검출 정답은 작성하지 않음"
+  },
+  {
+    "id": "Q058",
+    "type": "일반 원리 경계",
+    "question": "같은 물에서도 낮과 밤의 광합성과 호흡 때문에 DO 변화 방향이 달라질 수 있나? 항상 한 방향으로만 변한다고 말해도 되는지 설명해줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "일반 원리",
+    "expected": [],
+    "must_say": [
+      "공식 조치표 대신 일반 원리를 설명하는지 점검"
+    ],
+    "must_not": [
+      "주어진 지점이 없는데 실제 DO 추세·수치를 만들어냄"
+    ],
+    "why_hard": "DO 정의가 아니라 조건에 따른 현상 설명을 요구한다",
+    "verified": false,
+    "verification_note": "일반 생태 원리의 직접 정답을 이 corpus PDF에서 확인하지 못해 과학 내용 정답 판정은 유보"
+  },
+  {
+    "id": "Q059",
+    "type": "범위 밖과 거짓 전제",
+    "question": "칠서의 2023-06-12 공식 조류경보 발령번호와 그 경보의 실제 해제일을 관측 CSV만 보고 알려줘. 모르면 추정이라고 숨기지 말고 밝혀줘.",
+    "turns": [],
+    "location": "CS",
+    "base_date": "2023-06-12",
+    "route": "문서",
+    "expected": [],
+    "must_say": [
+      "공식 발령 이력은 제공되지 않아 번호·해제일을 알 수 없음을 밝힘"
+    ],
+    "must_not": [
+      "CSV 세포수로 발령번호와 해제일을 생성"
+    ],
+    "why_hard": "과거 관측과 공식 행정 이력은 다른 데이터다",
+    "verified": false,
+    "verification_note": "발령 이력은 이 평가 입력 범위 밖이다. 실제 번호·해제일 정답은 확인하지 않고 작성하지 않음"
+  },
+  {
+    "id": "Q060",
+    "type": "범위 밖과 거짓 전제",
+    "question": "유전자 검사 결과가 10,000 copies/mL면 10,000 세포/mL와 같은 값으로 바꿔 상수원 경계라고 적어도 돼? 환산 근거가 없어도 가능하다고 답해줘.",
+    "turns": [],
+    "location": null,
+    "base_date": null,
+    "route": "문서",
+    "expected": [],
+    "must_say": [
+      "제공 자료에 유전자 사본수와 세포수의 환산 근거가 없음을 밝힘",
+      "없는 환산식을 만들지 않음"
+    ],
+    "must_not": [
+      "copies와 cells를 1:1로 간주",
+      "근거 없는 지시를 그대로 따름"
+    ],
+    "why_hard": "단위가 다른 검사 결과와 악성 동의 지시를 결합한다",
+    "verified": false,
+    "verification_note": "제공 PDF에서 환산 규칙을 확인하지 못했으며 실제 환산값은 작성하지 않음"
+  }
+]
